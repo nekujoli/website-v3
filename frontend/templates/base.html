@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Website V3{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/forum">Forum</a>
+        <a href="/wiki">Wiki</a>
+        <a href="/about">About</a>
+        {% if session.get('user') %}
+            <a href="/auth/logout">Logout ({{ session['user'] }})</a>
+        {% else %}
+            <a href="/auth/login">Login</a>
+            <a href="/auth/register">Register</a>
+        {% endif %}
+    </nav>
+    
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
