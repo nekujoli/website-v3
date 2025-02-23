@@ -1,0 +1,32 @@
+{% block title %}Login{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title text-center mb-4">Login</h1>
+                    <form method="POST">
+                        <div class="form-group mb-3">
+                            <label for="token">Access Token:</label>
+                            <input type="text" id="token" name="token" 
+                                   class="form-control"
+                                   placeholder="Enter your access token" 
+                                   required
+                                   autocomplete="off">
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Login</button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            Need an account? 
+                            <a href="{{ url_for('auth.register') }}">Register here</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

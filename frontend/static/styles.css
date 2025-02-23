@@ -1,17 +1,109 @@
-/* frontend/static/styles.css */
-body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-    text-align: center;
+
+/**
+ * Website V3 Styles
+ * 
+ * This stylesheet contains all custom styling for the website.
+ * Bootstrap classes should be used where possible, with custom
+ * styles only for specific needs.
+ */
+
+/* Global Styles
+----------------------------------------*/
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
 }
 
-nav {
-    background: #333;
-    padding: 10px;
+/* Forum Styles
+----------------------------------------*/
+.thread-list {
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
-nav a {
-    color: white;
-    text-decoration: none;
-    margin: 0 15px;
+.thread-item {
+    transition: background-color 0.2s;
+}
+
+.thread-item:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+
+.thread-item.selected {
+    background-color: rgba(0,123,255,0.1);
+    border-color: var(--primary-color);
+}
+
+/* Post Editor
+----------------------------------------*/
+.post-editor {
+    min-height: 200px;
+    resize: vertical;
+}
+
+.preview-pane {
+    border: 1px solid #dee2e6;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+/* User Selection
+----------------------------------------*/
+.user-search {
+    position: relative;
+}
+
+.user-results {
+    position: absolute;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.selected-users {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.selected-user {
+    display: inline-flex;
+    align-items: center;
+    background: #e9ecef;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+}
+
+/* Edit History
+----------------------------------------*/
+.edit-history {
+    max-width: 100%;
+}
+
+.edit-entry {
+    margin-bottom: 2rem;
+}
+
+.content-diff {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+/* Responsive Adjustments
+----------------------------------------*/
+@media (max-width: 768px) {
+    .content-diff {
+        grid-template-columns: 1fr;
+    }
 }

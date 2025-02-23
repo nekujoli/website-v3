@@ -1,0 +1,65 @@
+{% block title %}Edit Post{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads') }}">Forum</a></li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('forum.view_thread', thread_id=post.thread_id) }}">Thread</a>
+            </li>
+            <li class="breadcrumb-item active">Edit Post</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-body">
+            <h1 class="card-title">Edit Post</h1>
+            <form method="POST">
+                <div class="form-group mb-3">
+                    <label for="content">Content:</label>
+                    <textarea id="content" name="content" 
+                             class="form-control post-editor" 
+                             rows="10" required>{{ post.content }}</textarea>
+                    <div class="form-text text-muted">
+                        Supports Markdown and image paste
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <a href="{{ url_for('forum.view_thread', thread_id=post.thread_id) }}" 
+                       class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('content').addEventListener('paste', async function(e) {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    
+    for (let item of items) {
+        if (item.type.indexOf('image') === 0) {
+            e.preventDefault();
+            
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                const img_data = event.target.result;
+                const cursor = this.selectionStart;
+                const text = this.value;
+                
+                this.value = text.substring(0, cursor) + 
+                    `![Pasted image](${img_data})` +
+                    text.substring(cursor);
+            }.bind(this);
+            
+            reader.readAsDataURL(blob);
+        }
+    }
+});
+</script>
+{% endblock %}

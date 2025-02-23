@@ -1,0 +1,101 @@
+{% block title %}Forum{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Forum</h1>
+        {% if session.get('user') %}
+            <a href="{{ url_for('forum.new_thread') }}" class="btn btn-primary">New Thread</a>
+        {% endif %}
+    </div>
+
+    <div class="thread-list" tabindex="0">
+        {% for thread in threads %}
+            <div class="thread-item card mb-3" data-thread-id="{{ thread.id }}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-1">
+                            <a href="{{ url_for('forum.view_thread', thread_id=thread.id) }}" class="text-decoration-none">
+                                {{ thread.title }}
+                            </a>
+                        </h5>
+                        <small class="text-muted">{{ thread.post_count }} posts</small>
+                    </div>
+                    <p class="card-subtitle mb-2 text-muted">
+                        Started by {{ thread.username }} on {{ thread.created_at | datetime }}
+                    </p>
+                    {% if thread.last_post_at != thread.created_at %}
+                        <small class="text-muted">
+                            Last post: {{ thread.last_post_at | datetime }}
+                        </small>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info">No threads yet.</div>
+        {% endfor %}
+    </div>
+
+    {% if page > 1 or threads | length == Config.THREADS_PER_PAGE %}
+        <nav aria-label="Thread navigation">
+            <ul class="pagination justify-content-center">
+                {% if page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('forum.view_threads', page=page-1) }}">Previous</a>
+                    </li>
+                {% endif %}
+                {% if threads | length == Config.THREADS_PER_PAGE %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('forum.view_threads', page=page+1) }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const threadList = document.querySelector('.thread-list');
+    let selectedIndex = -1;
+    
+    function updateSelection() {
+        const items = document.querySelectorAll('.thread-item');
+        items.forEach((item, index) => {
+            if (index === selectedIndex) {
+                item.classList.add('selected');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+    
+    threadList.addEventListener('keydown', function(e) {
+        const items = document.querySelectorAll('.thread-item');
+        
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                updateSelection();
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                selectedIndex = Math.max(0, selectedIndex - 1);
+                updateSelection();
+                break;
+                
+            case 'Enter':
+                e.preventDefault();
+                if (selectedIndex >= 0) {
+                    const link = items[selectedIndex].querySelector('a');
+                    if (link) link.click();
+                }
+                break;
+        }
+    });
+});
+</script>
+{% endblock %}

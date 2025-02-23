@@ -1,0 +1,35 @@
+{% block title %}Register{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title text-center mb-4">Register</h1>
+                    <form method="POST">
+                        <div class="form-group mb-3">
+                            <label for="language">Preferred Language:</label>
+                            <select name="language" id="language" class="form-select" required>
+                                <option value="en">English</option>
+                                <option value="fr">French</option>
+                                <option value="es">Spanish</option>
+                            </select>
+                            <div class="form-text text-muted">
+                                This will be used for content translation
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Register</button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            Already have an account? 
+                            <a href="{{ url_for('auth.login') }}">Login here</a>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

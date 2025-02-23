@@ -1,0 +1,84 @@
+{% block title %}{{ thread.title }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads') }}">Forum</a></li>
+            <li class="breadcrumb-item active">{{ thread.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="post-list">
+        {% for post in posts %}
+            <div class="post-item card mb-4" data-post-id="{{ post.id }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ post.username }}</strong>
+                        <small class="text-muted">{{ post.created_at | datetime }}</small>
+                    </div>
+                    {% if session.get('user_id') == post.created_by %}
+                        <div class="btn-group">
+                            <a href="{{ url_for('forum.edit_post', post_id=post.id) }}" 
+                               class="btn btn-sm btn-outline-secondary">Edit</a>
+                            {% if post.edit_count %}
+                                <a href="{{ url_for('forum.post_history', post_id=post.id) }}"
+                                   class="btn btn-sm btn-outline-secondary">History ({{ post.edit_count }})</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-body content">
+                    {{ post.content | safe }}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    {% if session.get('user') %}
+        <form method="POST" action="{{ url_for('forum.new_post', thread_id=thread.id) }}" class="mt-4">
+            <div class="form-group">
+                <label for="content">Reply:</label>
+                <textarea id="content" name="content" class="form-control" rows="5" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Post Reply</button>
+        </form>
+    {% else %}
+        <div class="alert alert-info">
+            Please <a href="{{ url_for('auth.login') }}">log in</a> to reply.
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('content');
+    if (textarea) {
+        textarea.addEventListener('paste', async function(e) {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            
+            for (let item of items) {
+                if (item.type.indexOf('image') === 0) {
+                    e.preventDefault();
+                    
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        const img_data = event.target.result;
+                        const cursor = this.selectionStart;
+                        const text = this.value;
+                        
+                        this.value = text.substring(0, cursor) + 
+                            `![Pasted image](${img_data})` +
+                            text.substring(cursor);
+                    }.bind(this);
+                    
+                    reader.readAsDataURL(blob);
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

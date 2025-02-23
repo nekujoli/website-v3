@@ -1,0 +1,18 @@
+
+{% block wiki_content %}
+    <div class="card">
+        <div class="card-body">
+            <h1 class="card-title">{{ page.title }}</h1>
+            <div class="card-text content">
+                {{ page.content | safe }}
+            </div>
+            
+            {% if session.get('user') %}
+                <div class="mt-4">
+                    <a href="#" class="btn btn-outline-secondary">Edit</a>
+                    <a href="#" class="btn btn-outline-secondary">History</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

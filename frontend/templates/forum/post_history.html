@@ -1,0 +1,46 @@
+{% block title %}Post Edit History{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads') }}">Forum</a></li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('forum.view_thread', thread_id=post.thread_id) }}">Thread</a>
+            </li>
+            <li class="breadcrumb-item active">Edit History</li>
+        </ol>
+    </nav>
+
+    <h1 class="mb-4">Post Edit History</h1>
+    
+    <div class="edit-history">
+        {% for edit in edits %}
+            <div class="edit-entry card mb-4">
+                <div class="card-header">
+                    <div class="edit-meta">
+                        Edited by {{ edit.username }} on {{ edit.created_at | datetime }}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="content-diff row">
+                        <div class="col-md-6">
+                            <h3 class="h5">Previous Version</h3>
+                            <div class="old-content">
+                                {{ edit.old_content | safe }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h3 class="h5">New Version</h3>
+                            <div class="new-content">
+                                {{ edit.new_content | safe }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <a href="{{ url_for('forum.view_thread', thread_id=post.thread_id) }}" 
+       class="btn btn-outline-secondary">Back to Thread</a>
+{% endblock %}

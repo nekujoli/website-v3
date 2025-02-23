@@ -1,0 +1,59 @@
+{% block title %}Your Access Tokens{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title text-center mb-4">Your Access Tokens</h1>
+                    
+                    <div class="alert alert-warning">
+                        <strong>Important:</strong> Save these tokens now! 
+                        They cannot be recovered once you leave this page.
+                    </div>
+
+                    <div class="mb-4">
+                        <h2 class="h5">Your Username:</h2>
+                        <div class="p-2 bg-light rounded">
+                            <code>{{ username }}</code>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h2 class="h5">Permanent Tokens:</h2>
+                        <div class="list-group">
+                            {% for token in permanent %}
+                                <div class="list-group-item">
+                                    <code>{{ token[0] }}</code>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">
+                            These tokens can be used multiple times
+                        </small>
+                    </div>
+
+                    <div class="mb-4">
+                        <h2 class="h5">One-Time Tokens:</h2>
+                        <div class="list-group mb-2" style="max-height: 200px; overflow-y: auto;">
+                            {% for token in one_time %}
+                                <div class="list-group-item">
+                                    <code>{{ token[0] }}</code>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">
+                            Each of these tokens can only be used once
+                        </small>
+                    </div>
+                    
+                    <form method="POST" class="text-center">
+                        <button type="submit" class="btn btn-success">
+                            I have saved my tokens
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

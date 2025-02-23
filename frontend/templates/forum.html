@@ -2,5 +2,107 @@
 {% block title %}Forum{% endblock %}
 {% block content %}
     <h1>Forum</h1>
-    <p>Coming soon...</p>
 {% endblock %}
+
+@forum_blueprint.route("/api/search_users")
+def search_users():
+    """Search users by username."""
+    query = request.args.get('q', '')
+    if len(query) < 2:
+        return jsonify([])
+        
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, username 
+            FROM users 
+            WHERE username LIKE ? 
+            LIMIT 10
+        """, (f'%{query}%',))
+        users = cursor.fetchall()
+        
+    return jsonify([{
+        'id': user[0],
+        'username': user[1]
+    } for user in users])
+
+@forum_blueprint.route("/new_thread", methods=["GET", "POST"])
+def new_thread():
+    """Create a new thread."""
+    if not session.get('user'):
+        return redirect(url_for('auth.login'))
+
+    if request.method == "POST":
+        title = request.form.get('title')
+        content = request.form.get('content')
+        users = request.form.get('users', '').split(',')
+        
+        with get_db() as conn:
+            cursor = conn.cursor()
+            
+            # Create thread
+            cursor.execute(
+                "INSERT INTO threads (title, created_by) VALUES (?, ?)",
+                (title, session['user_id'])
+            )
+            thread_id = cursor.lastrowid
+            
+            # Create first post
+            cursor.execute(
+                "INSERT INTO posts (thread_id, created_by, content) VALUES (?, ?, ?)",
+                (thread_id, session['user_id'], content)
+            )
+            
+            # Add permitted users if any
+            if users and users[0]:  # Check if users list isn't empty
+                user_values = [(thread_id, int(user_id)) for user_id in users]
+                cursor.executemany(
+                    "INSERT INTO thread_users (thread_id, user_id) VALUES (?, ?)",
+                    user_values
+                )
+            
+            conn.commit()
+            
+        return redirect(url_for('forum.view_thread', thread_id=thread_id))
+        
+    return render_template('new_thread.html')
+
+# Modify view_threads() to check private threads
+@forum_blueprint.route("/")
+def view_threads():
+    """Show threads the user has access to."""
+    user_id = session.get('user_id')
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        if user_id:
+            # Show public threads and private threads user has access to
+            cursor.execute("""
+                SELECT DISTINCT threads.*, users.username
+                FROM threads 
+                JOIN users ON threads.created_by = users.id
+                LEFT JOIN thread_users ON threads.id = thread_users.thread_id
+                WHERE thread_users.user_id IS NULL 
+                   OR thread_users.user_id = ? 
+                   OR threads.created_by = ?
+                ORDER BY threads.created_at DESC
+                LIMIT ?
+            """, (user_id, user_id, Config.THREADS_PER_PAGE))
+        else:
+            # Show only public threads
+            cursor.execute("""
+                SELECT threads.*, users.username
+                FROM threads 
+                JOIN users ON threads.created_by = users.id
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM thread_users 
+                    WHERE thread_users.thread_id = threads.id
+                )
+                ORDER BY threads.created_at DESC
+                LIMIT ?
+            """, (Config.THREADS_PER_PAGE,))
+            
+        threads = cursor.fetchall()
+        
+    return render_template("forum.html", threads=threads)

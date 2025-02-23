@@ -1,0 +1,16 @@
+
+{% block wiki_content %}
+    <div class="card">
+        <div class="card-body">
+            <h1 class="card-title">Welcome to the Wiki</h1>
+            <p class="card-text">
+                This wiki section is currently under development.
+                Check back soon for more content!
+            </p>
+            
+            {% if session.get('user') %}
+                <a href="#" class="btn btn-primary">Create New Page</a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

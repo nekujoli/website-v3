@@ -1,0 +1,158 @@
+{% block title %}New Thread{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads') }}">Forum</a></li>
+            <li class="breadcrumb-item active">New Thread</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-body">
+            <h1 class="card-title">Create New Thread</h1>
+            <form id="newThreadForm" method="POST">
+                <div class="form-group mb-3">
+                    <label for="title">Thread Title:</label>
+                    <input type="text" id="title" name="title" 
+                           class="form-control" required
+                           maxlength="{{ Config.MAX_TITLE_LENGTH }}">
+                    <small class="form-text text-muted">
+                        Maximum {{ Config.MAX_TITLE_LENGTH }} characters
+                    </small>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="content">First Post:</label>
+                    <textarea id="content" name="content" 
+                             class="form-control post-editor" required
+                             rows="10"></textarea>
+                    <div class="form-text text-muted">
+                        Supports Markdown and image paste
+                    </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="userSearch">Add Users (Optional):</label>
+                    <div class="user-search position-relative">
+                        <input type="text" id="userSearch" 
+                               class="form-control"
+                               placeholder="Search users...">
+                        <div id="userResults" 
+                             class="user-results dropdown-menu w-100"></div>
+                    </div>
+                    <div id="selectedUsers" class="selected-users mt-2"></div>
+                    <input type="hidden" id="userList" name="users">
+                    <small class="form-text text-muted">
+                        Thread will be private if users are selected
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Create Thread</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedUsers = new Set();
+
+async function searchUsers(query) {
+    if (!query.trim()) {
+        document.getElementById('userResults').classList.remove('show');
+        return;
+    }
+    
+    const response = await fetch(`/forum/api/search_users?q=${encodeURIComponent(query)}`);
+    const users = await response.json();
+    
+    const resultsDiv = document.getElementById('userResults');
+    if (users.length > 0) {
+        resultsDiv.innerHTML = users
+            .filter(user => user.id !== {{ session.user_id }})
+            .filter(user => !selectedUsers.has(user.id))
+            .map(user => `
+                <button type="button" 
+                        class="dropdown-item"
+                        onclick="selectUser(${user.id}, '${user.username}')">
+                    ${user.username}
+                </button>
+            `).join('');
+        resultsDiv.classList.add('show');
+    } else {
+        resultsDiv.classList.remove('show');
+    }
+}
+
+function selectUser(id, username) {
+    if (selectedUsers.has(id)) return;
+    
+    selectedUsers.add(id);
+    const selectedDiv = document.getElementById('selectedUsers');
+    const userDiv = document.createElement('span');
+    userDiv.className = 'selected-user badge bg-secondary me-2';
+    userDiv.innerHTML = `
+        ${username}
+        <button type="button" 
+                class="btn-close btn-close-white btn-sm"
+                onclick="removeUser(${id}, this.parentElement)"></button>
+    `;
+    selectedDiv.appendChild(userDiv);
+    updateUserList();
+    
+    document.getElementById('userSearch').value = '';
+    document.getElementById('userResults').classList.remove('show');
+}
+
+function removeUser(id, element) {
+    selectedUsers.delete(id);
+    element.remove();
+    updateUserList();
+}
+
+function updateUserList() {
+    document.getElementById('userList').value = Array.from(selectedUsers).join(',');
+}
+
+// User search with debouncing
+const userSearch = document.getElementById('userSearch');
+userSearch.addEventListener('input', function(e) {
+    clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(() => searchUsers(e.target.value), 300);
+});
+
+// Hide results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!userSearch.contains(e.target)) {
+        document.getElementById('userResults').classList.remove('show');
+    }
+});
+
+// Image paste handling
+document.getElementById('content').addEventListener('paste', async function(e) {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    
+    for (let item of items) {
+        if (item.type.indexOf('image') === 0) {
+            e.preventDefault();
+            
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                const img_data = event.target.result;
+                const cursor = this.selectionStart;
+                const text = this.value;
+                
+                this.value = text.substring(0, cursor) + 
+                    `![Pasted image](${img_data})` +
+                    text.substring(cursor);
+            }.bind(this);
+            
+            reader.readAsDataURL(blob);
+        }
+    }
+});
+</script>
+{% endblock %}
