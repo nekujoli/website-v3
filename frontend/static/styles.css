@@ -1,21 +1,74 @@
-
-/**
- * Website V3 Styles
+* Website V3 Styles
  * 
- * This stylesheet contains all custom styling for the website.
- * Bootstrap classes should be used where possible, with custom
- * styles only for specific needs.
+ * Custom styling and Bootstrap overrides.
+ * Uses CSS variables for easy theme customization.
  */
 
-/* Global Styles
+/* Global Variables
 ----------------------------------------*/
 :root {
+    /* Colors */
     --primary-color: #007bff;
     --secondary-color: #6c757d;
     --success-color: #28a745;
     --danger-color: #dc3545;
     --warning-color: #ffc107;
     --info-color: #17a2b8;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+    
+    /* Typography */
+    --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-family-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 3rem;
+    
+    /* Border radius */
+    --border-radius: 0.25rem;
+    --border-radius-lg: 0.5rem;
+}
+
+/* Global Styles
+----------------------------------------*/
+body {
+    font-family: var(--font-family-sans);
+    line-height: 1.6;
+    color: var(--dark-color);
+}
+
+code {
+    font-family: var(--font-family-mono);
+}
+
+/* Navigation
+----------------------------------------*/
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: rgba(255,255,255,0.8);
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: #fff;
+}
+
+/* Content Areas
+----------------------------------------*/
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background-color: var(--light-color);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
 }
 
 /* Forum Styles
@@ -26,29 +79,21 @@
 }
 
 .thread-item {
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
 }
 
 .thread-item:hover {
-    background-color: rgba(0,0,0,0.05);
+    transform: translateX(var(--spacing-xs));
 }
 
 .thread-item.selected {
-    background-color: rgba(0,123,255,0.1);
     border-color: var(--primary-color);
+    background-color: rgba(0,123,255,0.05);
 }
 
-/* Post Editor
-----------------------------------------*/
 .post-editor {
     min-height: 200px;
     resize: vertical;
-}
-
-.preview-pane {
-    border: 1px solid #dee2e6;
-    padding: 1rem;
-    margin-top: 1rem;
 }
 
 /* User Selection
@@ -60,50 +105,157 @@
 .user-results {
     position: absolute;
     width: 100%;
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
-    z-index: 1000;
     background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 0.25rem;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: var(--border-radius);
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.selected-users {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
+    z-index: 1000;
 }
 
 .selected-user {
     display: inline-flex;
     align-items: center;
-    background: #e9ecef;
-    padding: 0.25rem 0.75rem;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    margin: var(--spacing-xs);
+    background: var(--light-color);
     border-radius: 1rem;
+}
+
+.selected-user button {
+    padding: 0;
+    background: none;
+    border: none;
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+.selected-user button:hover {
+    opacity: 1;
+}
+
+/* Post Content
+----------------------------------------*/
+.content {
+    overflow-wrap: break-word;
+}
+
+.content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--border-radius);
+}
+
+.content pre {
+    background: var(--light-color);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    overflow-x: auto;
+}
+
+.content blockquote {
+    border-left: 4px solid var(--secondary-color);
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--light-color);
 }
 
 /* Edit History
 ----------------------------------------*/
-.edit-history {
-    max-width: 100%;
-}
-
-.edit-entry {
-    margin-bottom: 2rem;
-}
-
-.content-diff {
+.edit-history .content-diff {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1rem;
+    gap: var(--spacing-md);
+}
+
+.old-content, .new-content {
+    padding: var(--spacing-md);
+    background: var(--light-color);
+    border-radius: var(--border-radius);
+}
+
+/* Forms
+----------------------------------------*/
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+.form-text {
+    color: var(--secondary-color);
+}
+
+/* Buttons
+----------------------------------------*/
+.btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Alerts
+----------------------------------------*/
+.alert {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 /* Responsive Adjustments
 ----------------------------------------*/
 @media (max-width: 768px) {
+    .thread-item:hover {
+        transform: none;
+    }
+    
     .content-diff {
         grid-template-columns: 1fr;
+    }
+    
+    .card {
+        margin-bottom: var(--spacing-md);
+    }
+}
+
+/* Accessibility
+----------------------------------------*/
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+/* Print Styles
+----------------------------------------*/
+@media print {
+    .navbar,
+    .user-search,
+    .btn {
+        display: none;
+    }
+    
+    .content {
+        font-size: 12pt;
+    }
+    
+    a[href]:after {
+        content: " (" attr(href) ")";
     }
 }
