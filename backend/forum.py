@@ -92,7 +92,10 @@ def view_threads():
         
         threads = cursor.fetchall()
         
-    return render_template("forum.html", threads=threads, page=page)
+    return render_template("forum/thread_list.html", 
+                               threads=threads, 
+                               page=page,
+                               Config=Config)
 
 @forum_blueprint.route("/thread/<int:thread_id>")
 def view_thread(thread_id: int):
@@ -134,7 +137,7 @@ def view_thread(thread_id: int):
                 WHERE id = ?
             """, (thread_id,))
     
-    return render_template("thread.html", thread=thread, posts=posts)
+    return render_template("forum/thread.html", thread=thread, posts=posts, Config=Config)
 
 @forum_blueprint.route("/new_thread", methods=["GET", "POST"])
 @rate_limit()
@@ -193,7 +196,52 @@ def new_thread():
             
         return redirect(url_for('forum.view_thread', thread_id=thread_id))
         
-    return render_template('new_thread.html')
+    return render_template('forum/new_thread.html', Config=Config)
+
+
+@forum_blueprint.route("/thread/<int:thread_id>/post", methods=["POST"])
+@rate_limit()
+def new_post(thread_id: int):
+    """Create a new post in a thread."""
+    if not session.get('user_id'):
+        return redirect(url_for('auth.login'))
+        
+    # Check thread access
+    if not check_thread_access(thread_id, session['user_id']):
+        abort(403)
+    
+    content = request.form.get('content', '').strip()
+    if not content:
+        flash("Post content cannot be empty")
+        return redirect(url_for('forum.view_thread', thread_id=thread_id))
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        processor = ContentProcessor(conn)
+        
+        # Create post
+        cursor.execute("""
+            INSERT INTO posts (thread_id, created_by, content)
+            VALUES (?, ?, ?)
+        """, (thread_id, session['user_id'], content))
+        post_id = cursor.lastrowid
+        
+        # Process content and store images
+        processed_content, _ = processor.process_new_post(content, post_id)
+        cursor.execute("""
+            UPDATE posts 
+            SET content = ?
+            WHERE id = ?
+        """, (processed_content, post_id))
+        
+        # Update thread timestamp
+        cursor.execute("""
+            UPDATE threads 
+            SET updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (thread_id,))
+        
+    return redirect(url_for('forum.view_thread', thread_id=thread_id))
 
 @forum_blueprint.route("/post/<int:post_id>/edit", methods=["GET", "POST"])
 @rate_limit()

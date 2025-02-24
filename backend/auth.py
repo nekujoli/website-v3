@@ -112,6 +112,7 @@ def register():
         if language not in Config.SUPPORTED_LANGUAGES:
             flash("Unsupported language")
             return redirect(url_for("auth.register"))
+        username = generate_unique_username()
         
         with get_db() as conn:
             cursor = conn.cursor()

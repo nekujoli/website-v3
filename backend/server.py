@@ -25,6 +25,7 @@ from auth import auth_blueprint
 from forum import forum_blueprint
 from wiki import wiki_blueprint
 from config import Config
+from datetime import datetime
 
 app = Flask(__name__, 
     template_folder="../frontend/templates", 
@@ -35,6 +36,17 @@ app = Flask(__name__,
 app.config.from_object(Config)
 app.config['SECRET_KEY'] = Config.SECRET_KEY
 csrf = CSRFProtect(app)
+
+# Add datetime filter
+@app.template_filter('datetime')
+def format_datetime(value):
+    """Format a datetime object for display."""
+    if isinstance(value, str):
+        try:
+            value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            return value
+    return value.strftime('%B %d, %Y at %I:%M %p')
 
 # Register blueprints
 app.register_blueprint(auth_blueprint, url_prefix="/auth")

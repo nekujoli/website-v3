@@ -34,7 +34,7 @@ class ContentProcessor:
         )
         
         # Configure HTML cleaning
-        self.allowed_tags = bleach.ALLOWED_TAGS + [
+        self.allowed_tags = list(bleach.ALLOWED_TAGS) + [
             'img', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'table', 'thead', 'tbody', 'tr', 'th', 'td',
             'hr', 'br', 'pre', 'code'
