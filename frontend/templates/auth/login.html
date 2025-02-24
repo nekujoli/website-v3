@@ -7,6 +7,15 @@
                 <div class="card-body">
                     <h1 class="card-title text-center mb-4">Login</h1>
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="form-group mb-3">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" name="username" 
+                                   class="form-control"
+                                   placeholder="Enter your username" 
+                                   required
+                                   autocomplete="off">
+                        </div>
                         <div class="form-group mb-3">
                             <label for="token">Access Token:</label>
                             <input type="text" id="token" name="token" 

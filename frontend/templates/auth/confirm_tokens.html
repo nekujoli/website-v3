@@ -1,3 +1,4 @@
+{% extends "base.html" %}
 {% block title %}Your Access Tokens{% endblock %}
 
 {% block content %}
@@ -8,8 +9,10 @@
                     <h1 class="card-title text-center mb-4">Your Access Tokens</h1>
                     
                     <div class="alert alert-warning">
-                        <strong>Important:</strong> Save these tokens now! 
-                        They cannot be recovered once you leave this page.
+                        <strong>Important:</strong> Save the username and these tokens now! 
+                        They cannot be recovered, retransmitted or recreated once you leave this page!
+                        Each time you use a one-time token it will be deleted from the list!
+                        Whenever you're logged in you can replace all your tokens by generating a new set.
                     </div>
 
                     <div class="mb-4">
@@ -46,11 +49,14 @@
                             Each of these tokens can only be used once
                         </small>
                     </div>
-                    
-                    <form method="POST" class="text-center">
-                        <button type="submit" class="btn btn-success">
-                            I have saved my tokens
-                        </button>
+
+                    <form method="POST" action="{{ url_for('auth.confirm_registration') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success">
+                                I have saved my tokens
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

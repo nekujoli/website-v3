@@ -16,6 +16,7 @@
             <h1 class="card-title">Edit Post</h1>
             <form method="POST">
                 <div class="form-group mb-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <label for="content">Content:</label>
                     <textarea id="content" name="content" 
                              class="form-control post-editor" 

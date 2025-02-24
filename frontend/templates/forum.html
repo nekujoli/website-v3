@@ -67,42 +67,51 @@ def new_thread():
         
     return render_template('new_thread.html')
 
-# Modify view_threads() to check private threads
 @forum_blueprint.route("/")
 def view_threads():
-    """Show threads the user has access to."""
+    """Show threads accessible to current user."""
     user_id = session.get('user_id')
+    page = request.args.get('page', 1, type=int)
+    offset = (page - 1) * Config.THREADS_PER_PAGE
     
     with get_db() as conn:
         cursor = conn.cursor()
         
+        # Different queries for logged in vs anonymous users
         if user_id:
-            # Show public threads and private threads user has access to
             cursor.execute("""
-                SELECT DISTINCT threads.*, users.username
-                FROM threads 
-                JOIN users ON threads.created_by = users.id
-                LEFT JOIN thread_users ON threads.id = thread_users.thread_id
-                WHERE thread_users.user_id IS NULL 
-                   OR thread_users.user_id = ? 
-                   OR threads.created_by = ?
-                ORDER BY threads.created_at DESC
-                LIMIT ?
-            """, (user_id, user_id, Config.THREADS_PER_PAGE))
+                SELECT DISTINCT 
+                    t.*, u.username,
+                    COUNT(p.id) as post_count,
+                    MAX(p.created_at) as last_post_at
+                FROM threads t
+                JOIN users u ON t.created_by = u.id
+                LEFT JOIN thread_users tu ON t.id = tu.thread_id
+                LEFT JOIN posts p ON t.id = p.thread_id
+                WHERE 
+                    tu.thread_id IS NULL 
+                    OR tu.user_id = ?
+                    OR t.created_by = ?
+                GROUP BY t.id
+                ORDER BY last_post_at DESC
+                LIMIT ? OFFSET ?
+            """, (user_id, user_id, Config.THREADS_PER_PAGE, offset))
         else:
-            # Show only public threads
             cursor.execute("""
-                SELECT threads.*, users.username
-                FROM threads 
-                JOIN users ON threads.created_by = users.id
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM thread_users 
-                    WHERE thread_users.thread_id = threads.id
-                )
-                ORDER BY threads.created_at DESC
-                LIMIT ?
-            """, (Config.THREADS_PER_PAGE,))
-            
+                SELECT DISTINCT 
+                    t.*, u.username,
+                    COUNT(p.id) as post_count,
+                    MAX(p.created_at) as last_post_at
+                FROM threads t
+                JOIN users u ON t.created_by = u.id
+                LEFT JOIN thread_users tu ON t.id = tu.thread_id
+                LEFT JOIN posts p ON t.id = p.thread_id
+                WHERE tu.thread_id IS NULL
+                GROUP BY t.id
+                ORDER BY last_post_at DESC
+                LIMIT ? OFFSET ?
+            """, (Config.THREADS_PER_PAGE, offset))
+        
         threads = cursor.fetchall()
         
-    return render_template("forum.html", threads=threads)
+    return render_template("forum/thread_list.html", threads=threads, page=page)

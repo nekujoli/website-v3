@@ -1,3 +1,4 @@
+"""
 Authentication Module
 ===================
 
@@ -42,6 +43,36 @@ def generate_tokens() -> Dict[str, List[Tuple[str, str]]]:
                 for _ in range(Config.ONE_TIME_TOKEN_COUNT)]
     return {"permanent": permanent, "one_time": one_time}
 
+def generate_unique_username():
+    """Generate a unique 6-character username from syllables."""
+    while True:
+        username = generate_six_char_string()
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1 FROM users WHERE username = ?", (username,))
+            if not cursor.fetchone():
+                return username
+
+def generate_unique_token(user_id):
+    """Generate a token that doesn't exist for this user."""
+    while True:
+        token = generate_six_char_string()
+        token_hash = hash_value(token)
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM tokens WHERE user_id = ? AND token_hash = ?", 
+                (user_id, token_hash)
+            )
+            if not cursor.fetchone():
+                return token, token_hash
+
+def generate_tokens(user_id):
+    """Generate 3 permanent and 50 one-time unique tokens."""
+    permanent = [generate_unique_token(user_id) for _ in range(Config.PERMANENT_TOKEN_COUNT)]
+    one_time = [generate_unique_token(user_id) for _ in range(Config.ONE_TIME_TOKEN_COUNT)]
+    return {"permanent": permanent, "one_time": one_time}
+
 # Rate limiting implementation
 _rate_limits = {}
 
@@ -71,52 +102,50 @@ def rate_limit(max_requests: int = Config.MAX_REQUESTS_PER_WINDOW,
 @auth_blueprint.route("/register", methods=["GET", "POST"])
 @rate_limit()
 def register():
+    # Redirect if already logged in
+    if session.get('user'):
+        return redirect(url_for('home'))
     """Register new user and generate their tokens."""
+
     if request.method == "POST":
         language = request.form.get("language", Config.DEFAULT_LANGUAGE)
         if language not in Config.SUPPORTED_LANGUAGES:
             flash("Unsupported language")
             return redirect(url_for("auth.register"))
-            
-        username = generate_six_char_string()
-        tokens = generate_tokens()
-
+        
         with get_db() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO users (username, language) VALUES (?, ?)", 
-                (username, language)
-            )
+            cursor.execute("INSERT INTO users (username, language) VALUES (?, ?)", 
+                         (username, language))
             user_id = cursor.lastrowid
+            tokens = generate_tokens(user_id)
 
-            # Store permanent tokens
             for token, hash in tokens["permanent"]:
-                cursor.execute(
-                    "INSERT INTO tokens (user_id, token_hash, one_time) VALUES (?, ?, ?)",
-                    (user_id, hash, False)
-                )
-                
-            # Store one-time tokens
+                cursor.execute("INSERT INTO tokens (user_id, token_hash, one_time) VALUES (?, ?, ?)", 
+                             (user_id, hash, False))
             for token, hash in tokens["one_time"]:
-                cursor.execute(
-                    "INSERT INTO tokens (user_id, token_hash, one_time) VALUES (?, ?, ?)",
-                    (user_id, hash, True)
-                )
+                cursor.execute("INSERT INTO tokens (user_id, token_hash, one_time) VALUES (?, ?, ?)", 
+                             (user_id, hash, True))
 
-        return render_template(
-            "confirm_tokens.html",
-            username=username,
-            permanent=tokens["permanent"],
-            one_time=tokens["one_time"]
-        )
+        return render_template("auth/confirm_tokens.html", 
+                                username=username, 
+                                permanent=tokens["permanent"], 
+                                one_time=tokens["one_time"])
 
-    return render_template("register.html")
+    return render_template("auth/register.html")
+
+
+@auth_blueprint.route("/confirm_registration", methods=["POST"])
+def confirm_registration():
+    """Handle confirmation after tokens are displayed."""
+    return redirect(url_for('home'))
 
 @auth_blueprint.route("/login", methods=["GET", "POST"])
 @rate_limit()
 def login():
-    """Authenticate user with token."""
+    """Handle user login with username and token."""
     if request.method == "POST":
+        username = request.form.get("username", "").strip()
         token = request.form.get("token", "").strip()
         token_hash = hash_value(token)
 
@@ -127,12 +156,12 @@ def login():
                        tokens.id as token_id, tokens.one_time
                 FROM users 
                 JOIN tokens ON users.id = tokens.user_id 
-                WHERE tokens.token_hash = ?
-            """, (token_hash,))
+                WHERE users.username = ? AND tokens.token_hash = ?
+            """, (username, token_hash))
             result = cursor.fetchone()
 
             if not result:
-                flash("Invalid token")
+                flash("Invalid username or token")
                 return redirect(url_for("auth.login"))
 
             user_id, username, language, token_id, one_time = result
@@ -157,7 +186,7 @@ def login():
             
             return redirect(url_for("home"))
 
-    return render_template("login.html")
+    return render_template("auth/login.html")
 
 @auth_blueprint.route("/logout")
 def logout():

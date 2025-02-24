@@ -1,3 +1,4 @@
+"""
 Website V3 Server
 ================
 
@@ -32,6 +33,7 @@ app = Flask(__name__,
 
 # Configure app
 app.config.from_object(Config)
+app.config['SECRET_KEY'] = Config.SECRET_KEY
 csrf = CSRFProtect(app)
 
 # Register blueprints

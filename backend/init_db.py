@@ -1,3 +1,4 @@
+"""
 Database Initialization
 ======================
 
@@ -55,14 +56,14 @@ def reset_database():
     cursor.execute("""
     CREATE TABLE threads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL CHECK(length(title) <= ?),
+        title TEXT NOT NULL CHECK(length(title) <= 132),
         created_by INTEGER NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (created_by) REFERENCES users(id)
     );
-    """, (Config.MAX_TITLE_LENGTH,))
+    """)
 
     cursor.execute("""
     CREATE TABLE thread_users (

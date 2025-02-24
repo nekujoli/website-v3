@@ -13,6 +13,7 @@
             <h1 class="card-title">Create New Thread</h1>
             <form id="newThreadForm" method="POST">
                 <div class="form-group mb-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <label for="title">Thread Title:</label>
                     <input type="text" id="title" name="title" 
                            class="form-control" required
