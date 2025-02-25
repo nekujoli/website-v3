@@ -128,16 +128,12 @@ def view_thread(thread_id: int):
             WHERE p.thread_id = ?
             ORDER BY p.created_at ASC
         """, (thread_id,))
-        original_posts = cursor.fetchall()
-        
-        # Process post content (creating a new list since Row objects are immutable)
-        processed_posts = []
-        for post in original_posts:
-            # Convert Row to dict so we can modify it
-            post_dict = dict(post)
-            # Process the content for Markdown rendering
-            post_dict['content'] = processor.process_existing_post(post_dict['content'])
-            processed_posts.append(post_dict)
+        posts = cursor.fetchall()
+        # Process content for display
+        for post in posts:
+            # Convert content to HTML if not already processed
+            if '![' in post['content'] or '#' in post['content'] or '*' in post['content']:
+                post['content'] = processor.process_existing_post(post['content'])
         
         # Update last seen if logged in
         if user_id:
@@ -147,7 +143,7 @@ def view_thread(thread_id: int):
                 WHERE id = ?
             """, (thread_id,))
     
-    return render_template("forum/thread.html", thread=thread, posts=processed_posts, Config=Config)
+    return render_template("forum/thread.html", thread=thread, posts=posts, Config=Config)
 
 @forum_blueprint.route("/new_thread", methods=["GET", "POST"])
 @rate_limit()
@@ -334,16 +330,7 @@ def post_history(post_id: int):
         """, (post_id,))
         edits = cursor.fetchall()
         
-        # Process edit history content for display
-        processor = ContentProcessor(conn)
-        processed_edits = []
-        for edit in edits:
-            edit_dict = dict(edit)
-            edit_dict['old_content'] = processor.process_existing_post(edit_dict['old_content'])
-            edit_dict['new_content'] = processor.process_existing_post(edit_dict['new_content'])
-            processed_edits.append(edit_dict)
-        
-    return render_template('forum/post_history.html', post=post, edits=processed_edits, Config=Config)
+    return render_template('forum/post_history.html', post=post, edits=edits)
 
 @forum_blueprint.route("/api/image/<int:image_id>")
 def get_image(image_id: int):

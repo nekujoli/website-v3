@@ -1,3 +1,4 @@
+{% extends "base.html" %}
 {% block title %}Edit Post{% endblock %}
 
 {% block content %}
@@ -20,7 +21,7 @@
                     <label for="content">Content:</label>
                     <textarea id="content" name="content" 
                              class="form-control post-editor" 
-                             rows="10" required>{{ post.content }}</textarea>
+                             rows="10" required>{{ post.content|safe }}</textarea>
                     <div class="form-text text-muted">
                         Supports Markdown and image paste
                     </div>

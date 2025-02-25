@@ -146,35 +146,36 @@ class ContentProcessor:
         
         return safe_html, images
 
-    def process_existing_post(self, content: str) -> str:
-        """
-        Process existing post content for display.
-        Converts markdown to safe HTML.
-        """
-        # Reset the markdown processor
-        self.md.reset()
+def process_existing_post(self, content: str) -> str:
+    """
+    Process existing post content for display.
+    Converts markdown to safe HTML.
+    """
+    # Reset the markdown processor
+    self.md.reset()
+    
+    # Check if this looks like it contains an image markdown reference
+    if '![' in content and '](' in content:
+        # Replace any markdown image references that point to our API
+        img_pattern = r'!\[([^\]]*)\]\((/forum/api/image/\d+)\)'
         
-        # Check if this looks like it contains an image markdown reference
-        if '![' in content and '](' in content:
-            # Replace any markdown image references that point to our API
-            img_pattern = r'!\[([^\]]*)\]\((/forum/api/image/\d+)\)'
-            
-            def enhance_image_tag(match):
-                alt_text, img_url = match.groups()
-                # Create a more explicit markdown image reference
-                return f'![{alt_text}]({img_url})'
-            
-            content = re.sub(img_pattern, enhance_image_tag, content)
+        def enhance_image_tag(match):
+            alt_text, img_url = match.groups()
+            # Create a more explicit markdown image reference
+            return f'![{alt_text}]({img_url})'
         
-        # Convert markdown to HTML
-        html = self.md.convert(content)
-        
-        # Clean the HTML while preserving our allowed tags and attributes
-        clean_html = bleach.clean(
-            html,
-            tags=self.allowed_tags,
-            attributes=self.allowed_attrs,
-            strip=False
-        )
-        
-        return clean_html
+        content = re.sub(img_pattern, enhance_image_tag, content)
+    
+    # Convert markdown to HTML
+    html = self.md.convert(content)
+    
+    # Clean the HTML while preserving our allowed tags and attributes
+    clean_html = bleach.clean(
+        html,
+        tags=self.allowed_tags,
+        attributes=self.allowed_attrs,
+        strip=False
+    )
+    
+    return clean_html
+

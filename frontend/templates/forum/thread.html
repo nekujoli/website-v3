@@ -1,3 +1,4 @@
+{% extends "base.html" %}
 {% block title %}{{ thread.title }}{% endblock %}
 
 {% block content %}
@@ -28,7 +29,7 @@
                     {% endif %}
                 </div>
                 <div class="card-body content">
-                    {{ post.content | safe }}
+                    {{ post.content|safe }}
                 </div>
             </div>
         {% endfor %}
@@ -36,6 +37,7 @@
 
     {% if session.get('user') %}
         <form method="POST" action="{{ url_for('forum.new_post', thread_id=thread.id) }}" class="mt-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="content">Reply:</label>
                 <textarea id="content" name="content" class="form-control" rows="5" required></textarea>
