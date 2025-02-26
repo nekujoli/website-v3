@@ -30,8 +30,7 @@ class ContentProcessor:
         
         # Configure markdown
         self.md = markdown.Markdown(
-            extensions=['extra', 'nl2br', 'fenced_code', 'tables']
-        )
+            extensions=['extra', 'nl2br', 'fenced_code', 'tables', 'md_in_html'])
         
         # Configure HTML cleaning
         self.allowed_tags = list(bleach.ALLOWED_TAGS) + [
@@ -101,8 +100,8 @@ class ContentProcessor:
         """
         Process new post content:
         - Extract and store images
-        - Convert base64 images to URLs
-        Returns processed markdown content and list of image IDs.
+        - Convert markdown to safe HTML
+        Returns processed content and list of image IDs.
         """
         img_pattern = r'!\[([^\]]*)\]\(data:image/([^;]+);base64,([^\)]+)\)'
         images = []
@@ -134,17 +133,62 @@ class ContentProcessor:
                 return f'[Image processing error: {str(e)}]'
         
         # Replace base64 images with URLs
-        processed_content = re.sub(img_pattern, replace_image, content)
+        content = re.sub(img_pattern, replace_image, content)
         
-        # Return the processed markdown (not HTML) and list of image IDs
-        return processed_content, images
+        # Convert markdown to safe HTML
+        html = self.md.convert(content)
+        safe_html = bleach.clean(
+            html,
+            tags=self.allowed_tags,
+            attributes=self.allowed_attrs
+        )
+        
+        return safe_html, images
 
-    def render_markdown(self, content: str) -> str:
+    def process_existing_post(self, content: str) -> str:
+        """Process existing post content for display."""
+        self.md.reset()
+        
+        html = self.md.convert(content)
+        print(f"Processed HTML:\n{html}")  # Debugging output
+        
+        clean_html = bleach.clean(
+            html,
+            tags=self.allowed_tags,
+            attributes=self.allowed_attrs,
+            strip=False
+        )
+        return clean_html
+
+
+
+
+
+
+
+
+
+
+
+    def process_existing_postqq(self, content: str) -> str:
         """
-        Render markdown to HTML for display.
+        Process existing post content for display.
+        Converts markdown to safe HTML.
         """
         # Reset the markdown processor
         self.md.reset()
+        
+        # Check if this looks like it contains an image markdown reference
+        if '![' in content and '](' in content:
+            # Replace any markdown image references that point to our API
+            img_pattern = r'!\[([^\]]*)\]\((/forum/api/image/\d+)\)'
+            
+            def enhance_image_tag(match):
+                alt_text, img_url = match.groups()
+                # Create a more explicit markdown image reference
+                return f'![{alt_text}]({img_url})'
+            
+            content = re.sub(img_pattern, enhance_image_tag, content)
         
         # Convert markdown to HTML
         html = self.md.convert(content)

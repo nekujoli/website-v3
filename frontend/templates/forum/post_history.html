@@ -27,13 +27,13 @@
                         <div class="col-md-6">
                             <h3 class="h5">Previous Version</h3>
                             <div class="old-content">
-                                {{ edit.old_content | safe }}
+                                {{ edit.rendered_old_content|safe }}
                             </div>
                         </div>
                         <div class="col-md-6">
                             <h3 class="h5">New Version</h3>
                             <div class="new-content">
-                                {{ edit.new_content | safe }}
+                                {{ edit.rendered_new_content|safe }}
                             </div>
                         </div>
                     </div>

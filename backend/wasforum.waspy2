@@ -135,8 +135,8 @@ def view_thread(thread_id: int):
         for post in original_posts:
             # Convert Row to dict so we can modify it
             post_dict = dict(post)
-            # Render markdown to HTML for display
-            post_dict['rendered_content'] = processor.render_markdown(post_dict['content'])
+            # Process the content for Markdown rendering
+            post_dict['content'] = processor.process_existing_post(post_dict['content'])
             processed_posts.append(post_dict)
         
         # Update last seen if logged in
@@ -146,7 +146,7 @@ def view_thread(thread_id: int):
                 SET last_seen_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """, (thread_id,))
-    
+    print(f"Raw content:\n{post['content']}")  # Debug output    
     return render_template("forum/thread.html", thread=thread, posts=processed_posts, Config=Config)
 
 @forum_blueprint.route("/new_thread", methods=["GET", "POST"])
@@ -189,17 +189,15 @@ def new_thread():
                     VALUES (?, ?)
                 """, user_values)
             
-            # Create first post with empty content initially
+            # Create first post
             cursor.execute("""
                 INSERT INTO posts (thread_id, created_by, content)
-                VALUES (?, ?, '')
-            """, (thread_id, session['user_id']))
+                VALUES (?, ?, ?)
+            """, (thread_id, session['user_id'], content))
             post_id = cursor.lastrowid
             
-            # Process content (convert base64 images to URLs) but keep as markdown
+            # Process content and store images
             processed_content, _ = processor.process_new_post(content, post_id)
-            
-            # Update post with processed markdown (not HTML)
             cursor.execute("""
                 UPDATE posts 
                 SET content = ?
@@ -231,17 +229,15 @@ def new_post(thread_id: int):
         cursor = conn.cursor()
         processor = ContentProcessor(conn)
         
-        # Create post with empty content initially
+        # Create post
         cursor.execute("""
             INSERT INTO posts (thread_id, created_by, content)
-            VALUES (?, ?, '')
-        """, (thread_id, session['user_id']))
+            VALUES (?, ?, ?)
+        """, (thread_id, session['user_id'], content))
         post_id = cursor.lastrowid
         
-        # Process content (convert base64 images to URLs) but keep as markdown
+        # Process content and store images
         processed_content, _ = processor.process_new_post(content, post_id)
-        
-        # Update post with processed markdown (not HTML)
         cursor.execute("""
             UPDATE posts 
             SET content = ?
@@ -282,7 +278,7 @@ def edit_post(post_id: int):
         if request.method == "POST":
             new_content = request.form.get('content', '').strip()
             
-            # Store edit history with original markdown
+            # Store edit history
             cursor.execute("""
                 INSERT INTO post_edits (
                     post_id, edited_by, old_content, new_content
@@ -290,11 +286,10 @@ def edit_post(post_id: int):
                 VALUES (?, ?, ?, ?)
             """, (post_id, session['user_id'], post['content'], new_content))
             
-            # Process content but keep as markdown
+            # Process content and update post
             processor = ContentProcessor(conn)
             processed_content, _ = processor.process_new_post(new_content, post_id)
             
-            # Update post with processed markdown (not HTML)
             cursor.execute("""
                 UPDATE posts 
                 SET content = ?, updated_at = CURRENT_TIMESTAMP
@@ -313,7 +308,6 @@ def post_history(post_id: int):
     """View edit history of a post."""
     with get_db() as conn:
         cursor = conn.cursor()
-        processor = ContentProcessor(conn)
         
         # Get post info
         cursor.execute("""
@@ -341,12 +335,12 @@ def post_history(post_id: int):
         edits = cursor.fetchall()
         
         # Process edit history content for display
+        processor = ContentProcessor(conn)
         processed_edits = []
         for edit in edits:
             edit_dict = dict(edit)
-            # Render markdown to HTML for display
-            edit_dict['rendered_old_content'] = processor.render_markdown(edit_dict['old_content'])
-            edit_dict['rendered_new_content'] = processor.render_markdown(edit_dict['new_content'])
+            edit_dict['old_content'] = processor.process_existing_post(edit_dict['old_content'])
+            edit_dict['new_content'] = processor.process_existing_post(edit_dict['new_content'])
             processed_edits.append(edit_dict)
         
     return render_template('forum/post_history.html', post=post, edits=processed_edits, Config=Config)

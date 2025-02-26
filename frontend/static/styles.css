@@ -13,10 +13,10 @@
     --element-bg: #261c44;
     --highlight-bg: #362861;
     
-    --subtle-text: #86848a;
-    --standard-text: #9690a8;
-    --prominent-text: #a69cc3;
-    --highlight-text: #b6a8e0;
+    --subtle-text: ##B9B3DB;
+    --standard-text: #CFCBE7;
+    --prominent-text: #D0CBE7;
+    --highlight-text: #E5E3F2;
     
     /* Typography */
     --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -93,9 +93,9 @@ code {
 }
 
 .card-header {
-    background-color: var(--element-bg);
+    background-color: var(--card-bg);
     border-bottom: 1px solid rgba(0,0,0,0.1);
-    color: var(--prominent-text);
+    color: var(--standard-text);
 }
 
 .card-title {
@@ -104,6 +104,7 @@ code {
 
 .card-body {
     background-color: var(--card-bg);
+    color: var(--standard-text);
 }
 
 /* Forum Styles */
@@ -134,6 +135,37 @@ code {
     background-color: var(--element-bg);
     color: var(--standard-text);
     border-color: var(--highlight-bg);
+}
+/* Footer styling */
+html {
+    height: 100%;
+    position: relative;
+}
+
+body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+.site-footer {
+    background-color: var(--page-bg);
+    color: var(--subtle-text);
+    width: 100%;
+    margin-top: auto;
+}
+
+.site-footer a {
+    color: var(--highlight-text);
+}
+
+.site-footer a:hover {
+    color: var(--prominent-text);
+    text-decoration: underline;
 }
 
 /* Post Content */

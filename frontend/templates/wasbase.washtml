@@ -1,9 +1,7 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="A forum and wiki system with authentication and translation support">
     <title>{% block title %}Website V3{% endblock %}</title>
     <!-- Local Bootstrap CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
@@ -17,7 +15,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -37,9 +35,9 @@
                         <li class="nav-item"><a class="nav-link" href="/auth/register">Register</a></li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link" href="#" id="theme-toggle" aria-label="Toggle dark/light mode">
-                            <i class="fa fa-moon-o" id="dark-icon" aria-hidden="true"></i>
-                            <i class="fa fa-sun-o" id="light-icon" style="display:none;" aria-hidden="true"></i>
+                        <a class="nav-link" href="#" id="theme-toggle">
+                            <i class="fa fa-moon-o" id="dark-icon"></i>
+                            <i class="fa fa-sun-o" id="light-icon" style="display:none;"></i>
                             <span id="theme-text">Light Mode</span>
                         </a>
                     </li>
@@ -62,13 +60,7 @@
         
         {% block content %}{% endblock %}
     </main>
-    <footer class="site-footer">
-        <div class="container py-3">
-            <small>
-                newsapnow.org © 2025 by John Harris (<a href="mailto:john@newsapnow.org">john@newsapnow.org</a>) and contributors is licensed under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
-            </small>
-        </div>
-    </footer>
+
     <!-- Local Bootstrap JS at end of body for faster page load -->
     <script src="{{ url_for('static', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script>
@@ -87,10 +79,6 @@
                 darkIcon.style.display = 'none';
                 lightIcon.style.display = 'inline';
                 themeText.textContent = 'Dark Mode';
-            } else {
-                // Initialize dark mode explicitly
-                document.documentElement.classList.add('dark-mode');
-                document.body.classList.add('dark-mode');
             }
             
             // Toggle theme when clicked
@@ -99,7 +87,6 @@
                 
                 if (document.body.classList.contains('light-mode')) {
                     // Switch to dark mode
-                    document.documentElement.classList.remove('light-mode');
                     document.body.classList.remove('light-mode');
                     localStorage.setItem('theme', 'dark');
                     darkIcon.style.display = 'inline';
@@ -107,7 +94,6 @@
                     themeText.textContent = 'Light Mode';
                 } else {
                     // Switch to light mode
-                    document.documentElement.classList.add('light-mode');
                     document.body.classList.add('light-mode');
                     localStorage.setItem('theme', 'light');
                     darkIcon.style.display = 'none';
