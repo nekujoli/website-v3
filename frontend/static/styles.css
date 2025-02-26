@@ -35,7 +35,8 @@
 }
 
 /* Light mode toggle - can be activated via JavaScript */
-body.light-mode {
+/* debugging - this is the original but it's not a simple inverse yet */
+body.light-mode2 {
     --page-bg: #f8f9fa;
     --card-bg: #ffffff;
     --element-bg: #e9ecef;
@@ -45,6 +46,17 @@ body.light-mode {
     --standard-text: #495057;
     --prominent-text: #343a40;
     --highlight-text: #1e1636;
+}
+body.light-mode {
+    --page-bg: #06040b;
+    --card-bg: #161028;
+    --element-bg: #261c44;
+    --highlight-bg: #362861;
+    
+    --subtle-text: #86848a;
+    --standard-text: #9690a8;
+    --prominent-text: #a69cc3;
+    --highlight-text: #b6a8e0;
 }
 
 /* Global Styles */

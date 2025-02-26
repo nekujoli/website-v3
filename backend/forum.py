@@ -146,7 +146,7 @@ def view_thread(thread_id: int):
                 SET last_seen_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             """, (thread_id,))
-    
+    print(f"Raw content:\n{post['content']}")  # Debug output    
     return render_template("forum/thread.html", thread=thread, posts=processed_posts, Config=Config)
 
 @forum_blueprint.route("/new_thread", methods=["GET", "POST"])

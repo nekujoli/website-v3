@@ -30,8 +30,7 @@ class ContentProcessor:
         
         # Configure markdown
         self.md = markdown.Markdown(
-            extensions=['extra', 'nl2br', 'fenced_code', 'tables']
-        )
+            extensions=['extra', 'nl2br', 'fenced_code', 'tables', 'md_in_html'])
         
         # Configure HTML cleaning
         self.allowed_tags = list(bleach.ALLOWED_TAGS) + [
@@ -147,6 +146,31 @@ class ContentProcessor:
         return safe_html, images
 
     def process_existing_post(self, content: str) -> str:
+        """Process existing post content for display."""
+        self.md.reset()
+        
+        html = self.md.convert(content)
+        print(f"Processed HTML:\n{html}")  # Debugging output
+        
+        clean_html = bleach.clean(
+            html,
+            tags=self.allowed_tags,
+            attributes=self.allowed_attrs,
+            strip=False
+        )
+        return clean_html
+
+
+
+
+
+
+
+
+
+
+
+    def process_existing_postqq(self, content: str) -> str:
         """
         Process existing post content for display.
         Converts markdown to safe HTML.
