@@ -23,6 +23,23 @@
                         Maximum {{ Config.MAX_TITLE_LENGTH }} characters
                     </small>
                 </div>
+
+                <div class="form-group mb-3">
+                    <label for="group">Topic Group:</label>
+                    <select id="group" name="group_id" class="form-select" required>
+                        <option value="">Select a Group</option>
+                        {% for group in groups %}
+                            <option value="{{ group.id }}">{{ group.grouptext }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="category">Category:</label>
+                    <select id="category" name="category_id" class="form-select" required disabled>
+                        <option value="">Select a Group First</option>
+                    </select>
+                </div>
                 
                 <div class="form-group mb-3">
                     <label for="content">First Post:</label>
@@ -154,6 +171,41 @@ document.getElementById('content').addEventListener('paste', async function(e) {
             
             reader.readAsDataURL(blob);
         }
+    }
+});
+
+// Handle group selection change - fetch categories for selected group
+document.getElementById('group').addEventListener('change', async function() {
+    const groupId = this.value;
+    const categorySelect = document.getElementById('category');
+    
+    // Reset the category dropdown
+    categorySelect.innerHTML = '<option value="">Select a Category</option>';
+    
+    if (!groupId) {
+        categorySelect.disabled = true;
+        return;
+    }
+    
+    try {
+        // Fetch categories for the selected group
+        const response = await fetch(`/forum/api/categories/${groupId}`);
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        
+        const categories = await response.json();
+        
+        // Populate the category dropdown
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.category;
+            categorySelect.appendChild(option);
+        });
+        
+        // Enable the category dropdown
+        categorySelect.disabled = false;
+    } catch (error) {
+        console.error('Error fetching categories:', error);
     }
 });
 </script>

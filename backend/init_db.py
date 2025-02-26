@@ -239,15 +239,21 @@ def reset_database():
         VALUES (?, ?)
     """, group_categories_with_ids)
 
+
+
     cursor.execute("""
     CREATE TABLE threads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL CHECK(length(title) <= 132),
         created_by INTEGER NOT NULL,
+        group_id INTEGER,
+        category_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (created_by) REFERENCES users(id)
+        FOREIGN KEY (created_by) REFERENCES users(id),
+        FOREIGN KEY (group_id) REFERENCES groups(id),
+        FOREIGN KEY (category_id) REFERENCES group_categories(id)
     );
     """)
 

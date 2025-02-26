@@ -160,21 +160,28 @@ def new_thread():
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
         users = request.form.get('users', '').strip().split(',')
+        group_id = request.form.get('group_id')
+        category_id = request.form.get('category_id')
         
         # Validate title length
         if len(title) > Config.MAX_TITLE_LENGTH:
             flash(f"Title must be {Config.MAX_TITLE_LENGTH} characters or less")
             return redirect(url_for('forum.new_thread'))
         
+        # Validate group and category
+        if not group_id or not category_id:
+            flash("Please select both a group and category")
+            return redirect(url_for('forum.new_thread'))
+        
         with get_db() as conn:
             cursor = conn.cursor()
             processor = ContentProcessor(conn)
             
-            # Create thread
+            # Create thread with group and category
             cursor.execute("""
-                INSERT INTO threads (title, created_by)
-                VALUES (?, ?)
-            """, (title, session['user_id']))
+                INSERT INTO threads (title, created_by, group_id, category_id)
+                VALUES (?, ?, ?, ?)
+            """, (title, session['user_id'], group_id, category_id))
             thread_id = cursor.lastrowid
             
             # Add permitted users
@@ -207,9 +214,14 @@ def new_thread():
             """, (processed_content, post_id))
             
         return redirect(url_for('forum.view_thread', thread_id=thread_id))
+    
+    # GET request - Fetch groups for the form
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, grouptext FROM groups ORDER BY grouptext")
+        groups = cursor.fetchall()
         
-    return render_template('forum/new_thread.html', Config=Config)
-
+    return render_template('forum/new_thread.html', groups=groups, Config=Config)
 
 @forum_blueprint.route("/thread/<int:thread_id>/post", methods=["POST"])
 @rate_limit()
@@ -379,6 +391,24 @@ def get_image(image_id: int):
             f'inline; filename="{image["filename"]}"'
         )
         return response
+
+@forum_blueprint.route("/api/categories/<int:group_id>")
+def get_categories(group_id: int):
+    """API endpoint to get categories for a specific group."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, category 
+            FROM group_categories 
+            WHERE group_id = ?
+            ORDER BY category
+        """, (group_id,))
+        categories = cursor.fetchall()
+        
+    return jsonify([{
+        'id': cat['id'],
+        'category': cat['category']
+    } for cat in categories])
 
 @forum_blueprint.route("/api/search_users")
 def search_users():
