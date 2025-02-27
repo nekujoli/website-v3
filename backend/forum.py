@@ -13,6 +13,7 @@ Features:
 - User permissions
 """
 
+import sqlite3
 from flask import (
     Blueprint, render_template, session, redirect, request,
     url_for, flash, jsonify, make_response, abort

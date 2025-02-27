@@ -23,7 +23,6 @@ def reset_database():
     cursor.execute("DROP TABLE IF EXISTS images;")
     cursor.execute("DROP TABLE IF EXISTS post_edits;")
     cursor.execute("DROP TABLE IF EXISTS posts;")
-    cursor.execute("DROP TABLE IF EXISTS categories;")
     cursor.execute("DROP TABLE IF EXISTS moderators;")
     cursor.execute("DROP TABLE IF EXISTS thread_users;")
     cursor.execute("DROP TABLE IF EXISTS threads;")
