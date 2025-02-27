@@ -82,6 +82,26 @@ website-v3/
 │   └── templates/      # Jinja2 templates
 └── config.py           # Configuration
 ```
+# Admin Documentation - User Administration
+
+The website uses a simple role-based access control system:
+
+- User ID 1 is always the administrator and has access to all admin functions
+- Moderators are regular users who have been granted additional permissions
+- Regular users have standard access to forum and wiki features
+
+Admin users have access to special functionality through the admin dropdown menu in the navigation bar.
+
+## Moderator Management
+
+Moderators have the following capabilities:
+- Edit any post (not just their own)
+- Lock threads
+- Hide inappropriate content
+
+Moderators are managed through the admin panel, accessible only to the administrator (User ID 1).
+
+
 
 ## Testing Procedures
 

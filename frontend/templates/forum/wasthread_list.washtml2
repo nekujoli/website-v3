@@ -15,18 +15,20 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="card-subtitle mb-1">
-                                Started by {{ thread.username }} on {{ thread.created_at | datetime }}
-                                {% if thread.group_name and thread.category_name %}
-                                <span class="badge bg-primary ms-2">{{ thread.group_name }}</span>
-                                <span class="badge bg-secondary">{{ thread.category_name }}</span>
-                                {% endif %}
-                            </p>
                             <h5 class="card-title mb-1">
                                 <a href="{{ url_for('forum.view_thread', thread_id=thread.id) }}" class="text-decoration-none">
                                     {{ thread.title }}
                                 </a>
                             </h5>
+                            {% if thread.group_name and thread.category_name %}
+                            <div class="thread-metadata mb-1">
+                                <span class="badge bg-primary me-1">{{ thread.group_name }}</span>
+                                <span class="badge bg-secondary">{{ thread.category_name }}</span>
+                            </div>
+                            {% endif %}
+                            <p class="card-subtitle mb-2 text-muted">
+                                Started by {{ thread.username }} on {{ thread.created_at | datetime }}
+                            </p>
                         </div>
                         <small class="text-muted">{{ thread.post_count }} posts</small>
                     </div>

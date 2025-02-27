@@ -30,7 +30,20 @@ def check_thread_access(thread_id: int, user_id: Optional[int]) -> bool:
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Check if thread exists and is public
+        # Check if user is a moderator
+        if user_id:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM moderators
+                    WHERE user_id = ?
+                )
+            """, (user_id,))
+            is_moderator = bool(cursor.fetchone()[0])
+            
+            if is_moderator:
+                return True
+        
+        # Check if thread exists and is public or user has access
         cursor.execute("""
             SELECT EXISTS (
                 SELECT 1 FROM threads t
@@ -44,6 +57,59 @@ def check_thread_access(thread_id: int, user_id: Optional[int]) -> bool:
         """, (thread_id, user_id, user_id))
         
         return bool(cursor.fetchone()[0])
+
+def check_post_access(post_id: int, user_id: Optional[int]) -> bool:
+    """Check if user has access to post."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Check if user is a moderator
+        if user_id:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM moderators
+                    WHERE user_id = ?
+                )
+            """, (user_id,))
+            is_moderator = bool(cursor.fetchone()[0])
+            
+            if is_moderator:
+                return True
+        
+        # Check if post exists and either:
+        # 1. Has no restrictions (post_users entries)
+        # 2. User is in post_users
+        # 3. User is the post creator
+        cursor.execute("""
+            SELECT p.thread_id, p.created_by,
+                  (SELECT COUNT(*) FROM post_users WHERE post_id = ?) as has_restrictions
+            FROM posts p
+            WHERE p.id = ?
+        """, (post_id, post_id))
+        post = cursor.fetchone()
+        
+        if not post:
+            return False
+            
+        # First check thread access
+        if not check_thread_access(post['thread_id'], user_id):
+            return False
+            
+        # If post has no restrictions or user is post creator, allow access
+        if post['has_restrictions'] == 0 or post['created_by'] == user_id:
+            return True
+            
+        # Check if user is in post_users
+        if user_id:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM post_users
+                    WHERE post_id = ? AND user_id = ?
+                )
+            """, (post_id, user_id))
+            return bool(cursor.fetchone()[0])
+            
+        return False
 
 @forum_blueprint.route("/")
 def view_threads():
@@ -60,10 +126,14 @@ def view_threads():
             cursor.execute("""
                 SELECT DISTINCT 
                     t.*, u.username,
+                    g.grouptext as group_name,
+                    gc.category as category_name,
                     COUNT(p.id) as post_count,
                     MAX(p.created_at) as last_post_at
                 FROM threads t
                 JOIN users u ON t.created_by = u.id
+                LEFT JOIN groups g ON t.group_id = g.id
+                LEFT JOIN group_categories gc ON t.category_id = gc.id
                 LEFT JOIN thread_users tu ON t.id = tu.thread_id
                 LEFT JOIN posts p ON t.id = p.thread_id
                 WHERE 
@@ -78,10 +148,14 @@ def view_threads():
             cursor.execute("""
                 SELECT DISTINCT 
                     t.*, u.username,
+                    g.grouptext as group_name,
+                    gc.category as category_name,
                     COUNT(p.id) as post_count,
                     MAX(p.created_at) as last_post_at
                 FROM threads t
                 JOIN users u ON t.created_by = u.id
+                LEFT JOIN groups g ON t.group_id = g.id
+                LEFT JOIN group_categories gc ON t.category_id = gc.id
                 LEFT JOIN thread_users tu ON t.id = tu.thread_id
                 LEFT JOIN posts p ON t.id = p.thread_id
                 WHERE tu.thread_id IS NULL
@@ -109,14 +183,42 @@ def view_thread(thread_id: int):
         cursor = conn.cursor()
         processor = ContentProcessor(conn)
         
-        # Get thread info
+        # Check if user is a moderator
+        is_moderator = False
+        if user_id:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT 1 FROM moderators
+                    WHERE user_id = ?
+                )
+            """, (user_id,))
+            is_moderator = bool(cursor.fetchone()[0])
+        
+        # Get thread info with group and category
         cursor.execute("""
-            SELECT t.*, u.username
+            SELECT t.*, u.username,
+                   g.grouptext as group_name,
+                   gc.category as category_name
             FROM threads t
             JOIN users u ON t.created_by = u.id
+            LEFT JOIN groups g ON t.group_id = g.id
+            LEFT JOIN group_categories gc ON t.category_id = gc.id
             WHERE t.id = ?
         """, (thread_id,))
         thread = cursor.fetchone()
+        
+        if not thread:
+            abort(404)
+        
+        # Get permitted users for the thread
+        cursor.execute("""
+            SELECT u.id, u.username
+            FROM thread_users tu
+            JOIN users u ON tu.user_id = u.id
+            WHERE tu.thread_id = ?
+            ORDER BY u.username
+        """, (thread_id,))
+        thread_users = cursor.fetchall()
         
         # Get posts
         cursor.execute("""
@@ -135,9 +237,52 @@ def view_thread(thread_id: int):
         for post in original_posts:
             # Convert Row to dict so we can modify it
             post_dict = dict(post)
-            # Render markdown to HTML for display
-            post_dict['rendered_content'] = processor.render_markdown(post_dict['content'])
-            processed_posts.append(post_dict)
+            
+            # Check if post has restrictions
+            cursor.execute("""
+                SELECT COUNT(*) as is_restricted 
+                FROM post_users 
+                WHERE post_id = ?
+            """, (post_dict['id'],))
+            
+            restriction_info = cursor.fetchone()
+            post_dict['is_restricted'] = restriction_info['is_restricted'] if restriction_info else 0
+            
+            # Check post access
+            has_access = True
+            if post_dict['is_restricted'] > 0:
+                has_access = check_post_access(post_dict['id'], user_id)
+            
+            if has_access:
+                # Get post users if the post is restricted
+                post_dict['restricted_users'] = []
+                if post_dict['is_restricted'] > 0:
+                    cursor.execute("""
+                        SELECT u.id, u.username
+                        FROM post_users pu
+                        JOIN users u ON pu.user_id = u.id
+                        WHERE pu.post_id = ?
+                        ORDER BY u.username
+                    """, (post_dict['id'],))
+                    post_dict['restricted_users'] = cursor.fetchall()
+                
+                # Render markdown to HTML for display
+                post_dict['rendered_content'] = processor.render_markdown(post_dict['content'])
+                processed_posts.append(post_dict)
+        
+        # Check if this thread is a report thread (in Moderation group, Reported Post category)
+        is_report_thread = False
+        reported_post_id = None
+        
+        if thread['group_name'] == 'Moderation' and thread['category_name'] == 'Reported Post':
+            is_report_thread = True
+            
+            # Try to extract post ID from the first post content if it exists
+            if processed_posts and 'post-' in processed_posts[0]['content']:
+                import re
+                match = re.search(r'post-(\d+)', processed_posts[0]['content'])
+                if match:
+                    reported_post_id = int(match.group(1))
         
         # Update last seen if logged in
         if user_id:
@@ -147,7 +292,16 @@ def view_thread(thread_id: int):
                 WHERE id = ?
             """, (thread_id,))
     
-    return render_template("forum/thread.html", thread=thread, posts=processed_posts, Config=Config)
+    return render_template(
+        "forum/thread.html", 
+        thread=thread, 
+        posts=processed_posts, 
+        Config=Config,
+        thread_users=thread_users,
+        is_moderator=is_moderator,
+        is_report_thread=is_report_thread,
+        reported_post_id=reported_post_id
+    )
 
 @forum_blueprint.route("/new_thread", methods=["GET", "POST"])
 @rate_limit()
@@ -431,3 +585,417 @@ def search_users():
         'id': user['id'],
         'username': user['username']
     } for user in users])
+
+@forum_blueprint.route("/post/<int:post_id>/report", methods=["POST"])
+@rate_limit()
+def report_post(post_id: int):
+    """Report a post to moderators."""
+    if not session.get('user_id'):
+        return redirect(url_for('auth.login'))
+    
+    # Get the reason provided by the user
+    reason = request.form.get('reason', '').strip()
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Get post and thread info
+        cursor.execute("""
+            SELECT p.*, t.title as thread_title, t.id as thread_id, 
+                   u.username as post_author, ru.username as reporting_user
+            FROM posts p
+            JOIN threads t ON p.thread_id = t.id
+            JOIN users u ON p.created_by = u.id
+            JOIN users ru ON ru.id = ?
+            WHERE p.id = ?
+        """, (session['user_id'], post_id))
+        post_info = cursor.fetchone()
+        
+        if not post_info:
+            flash("Post not found")
+            return redirect(url_for('forum.view_threads'))
+        
+        # Get all moderators
+        cursor.execute("""
+            SELECT u.id 
+            FROM users u
+            JOIN moderators m ON u.id = m.user_id
+        """)
+        moderators = [row['id'] for row in cursor.fetchall()]
+        
+        # Find or create "Moderation" group
+        cursor.execute("SELECT id FROM groups WHERE grouptext = 'Moderation'")
+        group = cursor.fetchone()
+        
+        if not group:
+            cursor.execute("INSERT INTO groups (grouptext) VALUES ('Moderation')")
+            group_id = cursor.lastrowid
+        else:
+            group_id = group['id']
+        
+        # Find or create "Reported Post" category under "Moderation" group
+        cursor.execute("""
+            SELECT id FROM group_categories 
+            WHERE group_id = ? AND category = 'Reported Post'
+        """, (group_id,))
+        category = cursor.fetchone()
+        
+        if not category:
+            cursor.execute("""
+                INSERT INTO group_categories (group_id, category) 
+                VALUES (?, 'Reported Post')
+            """, (group_id,))
+            category_id = cursor.lastrowid
+        else:
+            category_id = category['id']
+        
+        # Create report thread
+        post_url = f"{request.host_url}forum/thread/{post_info['thread_id']}#post-{post_id}"
+        report_title = f"Report: '{post_info['thread_title']}'"
+        
+        cursor.execute("""
+            INSERT INTO threads (title, created_by, group_id, category_id)
+            VALUES (?, ?, ?, ?)
+        """, (report_title, session['user_id'], group_id, category_id))
+        report_thread_id = cursor.lastrowid
+        
+        # Add moderators to thread_users
+        for mod_id in moderators:
+            cursor.execute("""
+                INSERT INTO thread_users (thread_id, user_id)
+                VALUES (?, ?)
+            """, (report_thread_id, mod_id))
+        
+        # Create first post with report info
+        report_content = f"""
+User **{post_info['reporting_user']}** reported a post for your attention:
+
+**Thread:** {post_info['thread_title']}  
+**Author:** {post_info['post_author']}  
+**Post Link:** [View Reported Post]({post_url})
+
+"""
+        
+        if reason:
+            report_content += f"""
+**Reason for reporting:**  
+{reason}
+"""
+        
+        cursor.execute("""
+            INSERT INTO posts (thread_id, created_by, content)
+            VALUES (?, ?, ?)
+        """, (report_thread_id, session['user_id'], report_content))
+        
+        flash("Post reported to moderators")
+        
+    return redirect(url_for('forum.view_thread', thread_id=post_info['thread_id']))
+
+@forum_blueprint.route("/post/<int:post_id>/restrict", methods=["POST"])
+def restrict_post(post_id: int):
+    """Restrict a post to specific users (typically moderators)."""
+    user_id = session.get('user_id')
+    
+    # Check if user is a moderator
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM moderators
+                WHERE user_id = ?
+            )
+        """, (user_id,))
+        is_moderator = bool(cursor.fetchone()[0])
+    
+    if not user_id or not is_moderator:
+        abort(403)
+    
+    # Get the report thread ID from the form
+    report_thread_id = request.form.get('report_thread_id', type=int)
+    if not report_thread_id:
+        flash("Missing report thread ID")
+        return redirect(url_for('forum.view_threads'))
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Get post info
+        cursor.execute("SELECT thread_id FROM posts WHERE id = ?", (post_id,))
+        post = cursor.fetchone()
+        
+        if not post:
+            flash("Post not found")
+            return redirect(url_for('forum.view_threads'))
+        
+        # Get users who can see the report thread
+        cursor.execute("""
+            SELECT user_id 
+            FROM thread_users 
+            WHERE thread_id = ?
+        """, (report_thread_id,))
+        thread_users = [row['user_id'] for row in cursor.fetchall()]
+        
+        # Get all moderators
+        cursor.execute("SELECT user_id FROM moderators")
+        moderators = [row['user_id'] for row in cursor.fetchall()]
+        
+        # Combine users from both sources
+        allowed_users = set(thread_users + moderators)
+        
+        # Clear any existing restrictions
+        cursor.execute("DELETE FROM post_users WHERE post_id = ?", (post_id,))
+        
+        # Add restrictions for each user
+        for user_id in allowed_users:
+            cursor.execute("""
+                INSERT INTO post_users (post_id, user_id)
+                VALUES (?, ?)
+            """, (post_id, user_id))
+        
+        flash("Post visibility restricted to moderators and report participants")
+    
+    # Redirect back to the report thread
+    return redirect(url_for('forum.view_thread', thread_id=report_thread_id))
+
+@forum_blueprint.route("/post/<int:post_id>/unrestrict", methods=["POST"])
+def unrestrict_post(post_id: int):
+    """Remove post restrictions, making it visible to anyone with thread access."""
+    user_id = session.get('user_id')
+    
+    # Check if user is a moderator
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM moderators
+                WHERE user_id = ?
+            )
+        """, (user_id,))
+        is_moderator = bool(cursor.fetchone()[0])
+    
+    if not user_id or not is_moderator:
+        abort(403)
+    
+    # Get the report thread ID from the form
+    report_thread_id = request.form.get('report_thread_id', type=int)
+    if not report_thread_id:
+        flash("Missing report thread ID")
+        return redirect(url_for('forum.view_threads'))
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Get post info
+        cursor.execute("SELECT thread_id FROM posts WHERE id = ?", (post_id,))
+        post = cursor.fetchone()
+        
+        if not post:
+            flash("Post not found")
+            return redirect(url_for('forum.view_threads'))
+        
+        # Remove all restrictions
+        cursor.execute("DELETE FROM post_users WHERE post_id = ?", (post_id,))
+        
+        flash("Post visibility restored to normal")
+    
+    # Redirect back to the report thread
+    return redirect(url_for('forum.view_thread', thread_id=report_thread_id))
+
+@forum_blueprint.route("/thread/<int:thread_id>/add_user", methods=["POST"])
+def add_thread_user(thread_id: int):
+    """Add a user to a thread's allowed users list."""
+    user_id = session.get('user_id')
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Check if thread exists and user has appropriate permissions
+        cursor.execute("""
+            SELECT created_by FROM threads WHERE id = ?
+        """, (thread_id,))
+        thread = cursor.fetchone()
+        
+        if not thread:
+            flash("Thread not found")
+            return redirect(url_for('forum.view_threads'))
+        
+        # Check if user is a moderator
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM moderators
+                WHERE user_id = ?
+            )
+        """, (user_id,))
+        is_moderator = bool(cursor.fetchone()[0])
+        
+        # Only thread creator or moderators can add users
+        if user_id != thread['created_by'] and not is_moderator:
+            abort(403)
+        
+        # Get the user to add
+        add_user_id = request.form.get('user_id', type=int)
+        if not add_user_id:
+            flash("No user selected")
+            return redirect(url_for('forum.view_thread', thread_id=thread_id))
+        
+        # Check if the user exists
+        cursor.execute("SELECT username FROM users WHERE id = ?", (add_user_id,))
+        add_user = cursor.fetchone()
+        if not add_user:
+            flash("User not found")
+            return redirect(url_for('forum.view_thread', thread_id=thread_id))
+        
+        # Add user to thread_users if not already there
+        try:
+            cursor.execute("""
+                INSERT INTO thread_users (thread_id, user_id)
+                VALUES (?, ?)
+            """, (thread_id, add_user_id))
+            flash(f"Added {add_user['username']} to thread")
+        except sqlite3.IntegrityError:
+            flash(f"{add_user['username']} already has access to this thread")
+    
+    return redirect(url_for('forum.view_thread', thread_id=thread_id))
+
+@forum_blueprint.route("/thread/<int:thread_id>/remove_user/<int:remove_user_id>", methods=["POST"])
+def remove_thread_user(thread_id: int, remove_user_id: int):
+    """Remove a user from a thread's allowed users list."""
+    user_id = session.get('user_id')
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Check if thread exists and user has appropriate permissions
+        cursor.execute("""
+            SELECT created_by FROM threads WHERE id = ?
+        """, (thread_id,))
+        thread = cursor.fetchone()
+        
+        if not thread:
+            flash("Thread not found")
+            return redirect(url_for('forum.view_threads'))
+        
+        # Check if user is a moderator
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM moderators
+                WHERE user_id = ?
+            )
+        """, (user_id,))
+        is_moderator = bool(cursor.fetchone()[0])
+        
+        # Only thread creator or moderators can remove users
+        if user_id != thread['created_by'] and not is_moderator:
+            abort(403)
+        
+        # Get the username for the flash message
+        cursor.execute("SELECT username FROM users WHERE id = ?", (remove_user_id,))
+        remove_user = cursor.fetchone()
+        
+        # Remove the user from thread_users
+        cursor.execute("""
+            DELETE FROM thread_users
+            WHERE thread_id = ? AND user_id = ?
+        """, (thread_id, remove_user_id))
+        
+        if remove_user:
+            flash(f"Removed {remove_user['username']} from thread")
+    
+    return redirect(url_for('forum.view_thread', thread_id=thread_id))
+
+@forum_blueprint.route("/thread/<int:thread_id>/add_reporter", methods=["POST"])
+def add_reporter_to_thread(thread_id: int):
+    """Add the original reporter to a report thread."""
+    user_id = session.get('user_id')
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Check if user is a moderator or has access to the thread
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM moderators
+                WHERE user_id = ?
+            )
+        """, (user_id,))
+        is_moderator = bool(cursor.fetchone()[0])
+        
+        if not is_moderator and not check_thread_access(thread_id, user_id):
+            abort(403)
+        
+        # Get the first post to find reporter info
+        cursor.execute("""
+            SELECT p.id, p.created_by, u.username
+            FROM posts p
+            JOIN users u ON p.created_by = u.id
+            WHERE p.thread_id = ?
+            ORDER BY p.created_at ASC
+            LIMIT 1
+        """, (thread_id,))
+        first_post = cursor.fetchone()
+        
+        if not first_post:
+            flash("Could not find the reporter")
+            return redirect(url_for('forum.view_thread', thread_id=thread_id))
+        
+        # Add reporter to thread_users
+        try:
+            cursor.execute("""
+                INSERT INTO thread_users (thread_id, user_id)
+                VALUES (?, ?)
+            """, (thread_id, first_post['created_by']))
+            flash(f"Added reporter ({first_post['username']}) to the discussion")
+        except sqlite3.IntegrityError:
+            flash(f"Reporter already has access to this thread")
+    
+    return redirect(url_for('forum.view_thread', thread_id=thread_id))
+
+@forum_blueprint.route("/thread/<int:thread_id>/add_author", methods=["POST"])
+def add_author_to_thread(thread_id: int):
+    """Add the author of the reported post to a report thread."""
+    user_id = session.get('user_id')
+    reported_post_id = request.form.get('reported_post_id', type=int)
+    
+    if not reported_post_id:
+        flash("Could not determine the reported post")
+        return redirect(url_for('forum.view_thread', thread_id=thread_id))
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Check if user is a moderator or has access to the thread
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1 FROM moderators
+                WHERE user_id = ?
+            )
+        """, (user_id,))
+        is_moderator = bool(cursor.fetchone()[0])
+        
+        if not is_moderator and not check_thread_access(thread_id, user_id):
+            abort(403)
+        
+        # Get the reported post author
+        cursor.execute("""
+            SELECT p.created_by, u.username
+            FROM posts p
+            JOIN users u ON p.created_by = u.id
+            WHERE p.id = ?
+        """, (reported_post_id,))
+        reported_post = cursor.fetchone()
+        
+        if not reported_post:
+            flash("Could not find the reported post")
+            return redirect(url_for('forum.view_thread', thread_id=thread_id))
+        
+        # Add post author to thread_users
+        try:
+            cursor.execute("""
+                INSERT INTO thread_users (thread_id, user_id)
+                VALUES (?, ?)
+            """, (thread_id, reported_post['created_by']))
+            flash(f"Added post author ({reported_post['username']}) to the discussion")
+        except sqlite3.IntegrityError:
+            flash(f"Post author already has access to this thread")
+    
+    return redirect(url_for('forum.view_thread', thread_id=thread_id))

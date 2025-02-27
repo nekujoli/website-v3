@@ -136,7 +136,7 @@
             <div class="modal fade" id="reportModal{{ post.id }}" tabindex="-1" aria-labelledby="reportModalLabel{{ post.id }}" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <form method="POST" action="/forum/post/{{ post.id }}/report">
+                        <form method="POST" action="{{ url_for('forum.report_post', post_id=post.id) }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="modal-header">
                                 <h5 class="modal-title" id="reportModalLabel{{ post.id }}">Report Post</h5>

@@ -10,7 +10,6 @@ The application uses a modular blueprint structure:
 - auth: User authentication and management
 - forum: Discussion forum functionality
 - wiki: Knowledge base system
-- admin: Administrative functions (user ID 1 only)
 
 Security Notes
 -------------
@@ -25,7 +24,6 @@ from flask_wtf.csrf import CSRFProtect
 from auth import auth_blueprint
 from forum import forum_blueprint
 from wiki import wiki_blueprint
-from admin import admin_blueprint
 from config import Config
 from datetime import datetime
 
@@ -54,7 +52,6 @@ def format_datetime(value):
 app.register_blueprint(auth_blueprint, url_prefix="/auth")
 app.register_blueprint(forum_blueprint, url_prefix="/forum")
 app.register_blueprint(wiki_blueprint, url_prefix="/wiki")
-app.register_blueprint(admin_blueprint, url_prefix="/admin")
 
 @app.route("/")
 def home():
