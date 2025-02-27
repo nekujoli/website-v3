@@ -56,20 +56,6 @@ def reset_database():
         CHECK (language IN ('en', 'fr', 'es'))
     );
     """)
-    
-    # New table for user-group filtering
-    cursor.execute("""
-    CREATE TABLE user_groups (
-        user_id INTEGER NOT NULL,
-        group_id INTEGER NOT NULL,
-        filter_on BOOLEAN NOT NULL DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (user_id, group_id),
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
-    );
-    """)
 
     # Add moderators table
     cursor.execute("""

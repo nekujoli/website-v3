@@ -53,20 +53,23 @@
                 {% endif %}
                 
                 <!-- Moderator dropdown - only visible to moderators -->
-                {% if session.get('user_id') != 1 %}
-                    {% set user_id = session.get('user_id') %}
-                    {% if user_id %}
-                        {% for mod in moderators if mod.user_id == user_id %}
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="modDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Moderator
-                                </a>
-                                <ul class="dropdown-menu" aria-labelledby="modDropdown">
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.block_users') }}">Manage User Access</a></li>
-                                </ul>
-                            </li>
-                            {% break %}
-                        {% endfor %}
+                {% if session.get('user_id') and session.get('user_id') != 1 %}
+                    {% set is_moderator = false %}
+                    {% for mod in moderators %}
+                        {% if mod.user_id == session.get('user_id') %}
+                            {% set is_moderator = true %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if is_moderator %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="modDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Moderator
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="modDropdown">
+                                <li><a class="dropdown-item" href="{{ url_for('admin.block_users') }}">Manage User Access</a></li>
+                            </ul>
+                        </li>
                     {% endif %}
                 {% endif %}
             </ul>

@@ -19,6 +19,7 @@ def reset_gc():
     # Drop existing tables
     cursor.execute("DROP TABLE IF EXISTS categories;")
     cursor.execute("DROP TABLE IF EXISTS groups;")
+    cursor.execute("DROP TABLE IF EXISTS user_groups;")
     cursor.execute("DROP TABLE IF EXISTS groups_categories;")
 
     cursor.execute("""
@@ -31,6 +32,21 @@ def reset_gc():
     );
     """)
 # Simama! "group" is a reserved word in sqlite! that's why we use grouptext there.
+
+    # New table for user-group filtering
+    cursor.execute("""
+    CREATE TABLE user_groups (
+        user_id INTEGER NOT NULL,
+        group_id INTEGER NOT NULL,
+        filter_on BOOLEAN NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, group_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+    );
+    """)
+
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS group_categories (
