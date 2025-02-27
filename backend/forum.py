@@ -123,7 +123,22 @@ def view_threads():
         
         # Different queries for logged in vs anonymous users
         if user_id:
+            # Get the filtered groups for the user
             cursor.execute("""
+                SELECT group_id 
+                FROM user_groups 
+                WHERE user_id = ? AND filter_on = 1
+            """, (user_id,))
+            filtered_groups = [row['group_id'] for row in cursor.fetchall()]
+            
+            # If no groups are filtered (should not happen normally), show no threads
+            if not filtered_groups:
+                filtered_groups = [-1]  # Use an impossible group ID to return no results
+            
+            filtered_groups_str = ','.join('?' for _ in filtered_groups)
+            
+            # Get threads with appropriate filtering and access control
+            cursor.execute(f"""
                 SELECT DISTINCT 
                     t.*, u.username,
                     g.grouptext as group_name,
@@ -137,14 +152,18 @@ def view_threads():
                 LEFT JOIN thread_users tu ON t.id = tu.thread_id
                 LEFT JOIN posts p ON t.id = p.thread_id
                 WHERE 
-                    tu.thread_id IS NULL 
-                    OR tu.user_id = ?
-                    OR t.created_by = ?
+                    (t.group_id IS NULL OR t.group_id IN ({filtered_groups_str}))
+                    AND (
+                        tu.thread_id IS NULL 
+                        OR tu.user_id = ?
+                        OR t.created_by = ?
+                    )
                 GROUP BY t.id
                 ORDER BY last_post_at DESC
                 LIMIT ? OFFSET ?
-            """, (user_id, user_id, Config.THREADS_PER_PAGE, offset))
+            """, filtered_groups + [user_id, user_id, Config.THREADS_PER_PAGE, offset])
         else:
+            # Anonymous users see all public threads
             cursor.execute("""
                 SELECT DISTINCT 
                     t.*, u.username,
@@ -327,8 +346,19 @@ def new_thread():
             flash("Please select both a group and category")
             return redirect(url_for('forum.new_thread'))
         
+        # Verify the user has access to this group
         with get_db() as conn:
             cursor = conn.cursor()
+            cursor.execute("""
+                SELECT filter_on FROM user_groups 
+                WHERE user_id = ? AND group_id = ?
+            """, (session['user_id'], group_id))
+            
+            group_access = cursor.fetchone()
+            if not group_access or not group_access['filter_on']:
+                flash("You don't have access to post in this group")
+                return redirect(url_for('forum.new_thread'))
+            
             processor = ContentProcessor(conn)
             
             # Create thread with group and category
@@ -369,10 +399,16 @@ def new_thread():
             
         return redirect(url_for('forum.view_thread', thread_id=thread_id))
     
-    # GET request - Fetch groups for the form
+    # GET request - Fetch filtered groups for the form
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, grouptext FROM groups ORDER BY grouptext")
+        cursor.execute("""
+            SELECT g.id, g.grouptext 
+            FROM groups g
+            JOIN user_groups ug ON g.id = ug.group_id
+            WHERE ug.user_id = ? AND ug.filter_on = 1
+            ORDER BY g.grouptext
+        """, (session.get('user_id'),))
         groups = cursor.fetchall()
         
     return render_template('forum/new_thread.html', groups=groups, Config=Config)

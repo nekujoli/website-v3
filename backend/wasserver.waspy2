@@ -28,7 +28,6 @@ from wiki import wiki_blueprint
 from admin import admin_blueprint
 from config import Config
 from datetime import datetime
-from database import get_db
 
 app = Flask(__name__, 
     template_folder="../frontend/templates", 
@@ -56,18 +55,6 @@ app.register_blueprint(auth_blueprint, url_prefix="/auth")
 app.register_blueprint(forum_blueprint, url_prefix="/forum")
 app.register_blueprint(wiki_blueprint, url_prefix="/wiki")
 app.register_blueprint(admin_blueprint, url_prefix="/admin")
-
-# Get moderators for navbar
-@app.context_processor
-def inject_moderators():
-    """Add moderators to template context for navbar."""
-    moderators = []
-    if session.get('user_id'):
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT user_id FROM moderators")
-            moderators = cursor.fetchall()
-    return {'moderators': moderators}
 
 @app.route("/")
 def home():

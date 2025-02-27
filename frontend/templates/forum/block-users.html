@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Manage User Access{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-header">
+            <h1 class="h3 mb-0">Manage User Access</h1>
+        </div>
+        <div class="card-body">
+            <p class="mb-4">
+                Restrict users to only the Moderation group (blocking) or restore full access to all groups.
+                Blocked users can only view and post in the Moderation group to communicate with moderators.
+            </p>
+            
+            {% if protected_users %}
+            <div class="mb-4">
+                <h2 class="h5 mb-2">Protected Users (Cannot be Blocked)</h2>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in protected_users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td><span class="badge bg-info">{{ user.role }}</span></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
+            <h2 class="h5 mb-2">Regular Users</h2>
+            {% if users %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>
+                                    {% if user.active_groups == 1 %}
+                                        <span class="badge bg-warning">Restricted</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.active_groups == 1 %}
+                                        <form method="POST" action="{{ url_for('admin.restore_user', user_id=user.id) }}" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-success" 
+                                                    onclick="return confirm('Restore full access for {{ user.username }}?')">
+                                                Restore Access
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <form method="POST" action="{{ url_for('admin.block_user', user_id=user.id) }}" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-warning" 
+                                                    onclick="return confirm('Restrict {{ user.username }} to Moderation group only?')">
+                                                Restrict Access
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="alert alert-info">No users available to manage.</div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <a href="{{ url_for('admin.manage_moderators') }}" class="btn btn-outline-secondary">Manage Moderators</a>
+                <a href="{{ url_for('forum.view_threads') }}" class="btn btn-outline-secondary ms-2">Back to Forum</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

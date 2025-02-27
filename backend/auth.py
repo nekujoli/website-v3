@@ -102,10 +102,10 @@ def rate_limit(max_requests: int = Config.MAX_REQUESTS_PER_WINDOW,
 @auth_blueprint.route("/register", methods=["GET", "POST"])
 @rate_limit()
 def register():
+    """Register new user and generate their tokens."""
     # Redirect if already logged in
     if session.get('user'):
         return redirect(url_for('home'))
-    """Register new user and generate their tokens."""
 
     if request.method == "POST":
         language = request.form.get("language", Config.DEFAULT_LANGUAGE)
@@ -119,6 +119,8 @@ def register():
             cursor.execute("INSERT INTO users (username, language) VALUES (?, ?)", 
                          (username, language))
             user_id = cursor.lastrowid
+            
+            # Generate and store tokens
             tokens = generate_tokens(user_id)
 
             for token, hash in tokens["permanent"]:
@@ -127,6 +129,16 @@ def register():
             for token, hash in tokens["one_time"]:
                 cursor.execute("INSERT INTO tokens (user_id, token_hash, one_time) VALUES (?, ?, ?)", 
                              (user_id, hash, True))
+                             
+            # Get all groups and populate user_groups
+            cursor.execute("SELECT id FROM groups")
+            groups = cursor.fetchall()
+            
+            for group in groups:
+                cursor.execute("""
+                    INSERT INTO user_groups (user_id, group_id, filter_on)
+                    VALUES (?, ?, 1)
+                """, (user_id, group['id']))
 
         return render_template("auth/confirm_tokens.html", 
                                 username=username, 
@@ -134,7 +146,6 @@ def register():
                                 one_time=tokens["one_time"])
 
     return render_template("auth/register.html")
-
 
 @auth_blueprint.route("/confirm_registration", methods=["POST"])
 def confirm_registration():
