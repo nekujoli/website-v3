@@ -17,9 +17,6 @@
                         <div>
                             <p class="card-subtitle mb-1">
                                 Started by {{ thread.username }} on {{ thread.created_at | datetime }}
-                                {% if thread.last_post_at != thread.created_at %}
-                                <span class="text-muted mx-2">•</span> Last post: {{ thread.last_post_at | datetime }}
-                                {% endif %}
                                 {% if thread.group_name and thread.category_name %}
                                 <span class="badge bg-primary ms-2">{{ thread.group_name }}</span>
                                 <span class="badge bg-secondary">{{ thread.category_name }}</span>
@@ -33,6 +30,11 @@
                         </div>
                         <small class="text-muted">{{ thread.post_count }} posts</small>
                     </div>
+                    {% if thread.last_post_at != thread.created_at %}
+                        <small class="text-muted">
+                            Last post: {{ thread.last_post_at | datetime }}
+                        </small>
+                    {% endif %}
                 </div>
             </div>
         {% else %}
