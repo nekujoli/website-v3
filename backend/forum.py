@@ -112,85 +112,6 @@ def check_post_access(post_id: int, user_id: Optional[int]) -> bool:
             
         return False
 
-@forum_blueprint.route("/")
-def view_threads():
-    """Show threads accessible to current user."""
-    user_id = session.get('user_id')
-    page = request.args.get('page', 1, type=int)
-    offset = (page - 1) * Config.THREADS_PER_PAGE
-    
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        # Different queries for logged in vs anonymous users
-        if user_id:
-            # Get the filtered groups for the user
-            cursor.execute("""
-                SELECT group_id 
-                FROM user_groups 
-                WHERE user_id = ? AND filter_on = 1
-            """, (user_id,))
-            filtered_groups = [row['group_id'] for row in cursor.fetchall()]
-            
-            # If no groups are filtered (should not happen normally), show no threads
-            if not filtered_groups:
-                filtered_groups = [-1]  # Use an impossible group ID to return no results
-            
-            filtered_groups_str = ','.join('?' for _ in filtered_groups)
-            
-            # Get threads with appropriate filtering and access control
-            cursor.execute(f"""
-                SELECT DISTINCT 
-                    t.*, u.username,
-                    g.grouptext as group_name,
-                    gc.category as category_name,
-                    COUNT(p.id) as post_count,
-                    MAX(p.created_at) as last_post_at
-                FROM threads t
-                JOIN users u ON t.created_by = u.id
-                LEFT JOIN groups g ON t.group_id = g.id
-                LEFT JOIN group_categories gc ON t.category_id = gc.id
-                LEFT JOIN thread_users tu ON t.id = tu.thread_id
-                LEFT JOIN posts p ON t.id = p.thread_id
-                WHERE 
-                    (t.group_id IS NULL OR t.group_id IN ({filtered_groups_str}))
-                    AND (
-                        tu.thread_id IS NULL 
-                        OR tu.user_id = ?
-                        OR t.created_by = ?
-                    )
-                GROUP BY t.id
-                ORDER BY last_post_at DESC
-                LIMIT ? OFFSET ?
-            """, filtered_groups + [user_id, user_id, Config.THREADS_PER_PAGE, offset])
-        else:
-            # Anonymous users see all public threads
-            cursor.execute("""
-                SELECT DISTINCT 
-                    t.*, u.username,
-                    g.grouptext as group_name,
-                    gc.category as category_name,
-                    COUNT(p.id) as post_count,
-                    MAX(p.created_at) as last_post_at
-                FROM threads t
-                JOIN users u ON t.created_by = u.id
-                LEFT JOIN groups g ON t.group_id = g.id
-                LEFT JOIN group_categories gc ON t.category_id = gc.id
-                LEFT JOIN thread_users tu ON t.id = tu.thread_id
-                LEFT JOIN posts p ON t.id = p.thread_id
-                WHERE tu.thread_id IS NULL
-                GROUP BY t.id
-                ORDER BY last_post_at DESC
-                LIMIT ? OFFSET ?
-            """, (Config.THREADS_PER_PAGE, offset))
-        
-        threads = cursor.fetchall()
-        
-    return render_template("forum/thread_list.html", 
-                               threads=threads, 
-                               page=page,
-                               Config=Config)
-
 @forum_blueprint.route("/thread/<int:thread_id>")
 def view_thread(thread_id: int):
     """Show posts in a thread."""
@@ -322,97 +243,6 @@ def view_thread(thread_id: int):
         is_report_thread=is_report_thread,
         reported_post_id=reported_post_id
     )
-
-@forum_blueprint.route("/new_thread", methods=["GET", "POST"])
-@rate_limit()
-def new_thread():
-    """Create new thread with initial post."""
-    if not session.get('user_id'):
-        return redirect(url_for('auth.login'))
-
-    if request.method == "POST":
-        title = request.form.get('title', '').strip()
-        content = request.form.get('content', '').strip()
-        users = request.form.get('users', '').strip().split(',')
-        group_id = request.form.get('group_id')
-        category_id = request.form.get('category_id')
-        
-        # Validate title length
-        if len(title) > Config.MAX_TITLE_LENGTH:
-            flash(f"Title must be {Config.MAX_TITLE_LENGTH} characters or less")
-            return redirect(url_for('forum.new_thread'))
-        
-        # Validate group and category
-        if not group_id or not category_id:
-            flash("Please select both a group and category")
-            return redirect(url_for('forum.new_thread'))
-        
-        # Verify the user has access to this group
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT filter_on FROM user_groups 
-                WHERE user_id = ? AND group_id = ?
-            """, (session['user_id'], group_id))
-            
-            group_access = cursor.fetchone()
-            if not group_access or not group_access['filter_on']:
-                flash("You don't have access to post in this group")
-                return redirect(url_for('forum.new_thread'))
-            
-            processor = ContentProcessor(conn)
-            
-            # Create thread with group and category
-            cursor.execute("""
-                INSERT INTO threads (title, created_by, group_id, category_id)
-                VALUES (?, ?, ?, ?)
-            """, (title, session['user_id'], group_id, category_id))
-            thread_id = cursor.lastrowid
-            
-            # Add permitted users
-            if users and users[0]:
-                user_values = [
-                    (thread_id, int(user_id)) 
-                    for user_id in users 
-                    if user_id != session['user_id']
-                ]
-                cursor.executemany("""
-                    INSERT INTO thread_users (thread_id, user_id)
-                    VALUES (?, ?)
-                """, user_values)
-            
-            # Create first post with empty content initially
-            cursor.execute("""
-                INSERT INTO posts (thread_id, created_by, content)
-                VALUES (?, ?, '')
-            """, (thread_id, session['user_id']))
-            post_id = cursor.lastrowid
-            
-            # Process content (convert base64 images to URLs) but keep as markdown
-            processed_content, _ = processor.process_new_post(content, post_id)
-            
-            # Update post with processed markdown (not HTML)
-            cursor.execute("""
-                UPDATE posts 
-                SET content = ?
-                WHERE id = ?
-            """, (processed_content, post_id))
-            
-        return redirect(url_for('forum.view_thread', thread_id=thread_id))
-    
-    # GET request - Fetch filtered groups for the form
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT g.id, g.grouptext 
-            FROM groups g
-            JOIN user_groups ug ON g.id = ug.group_id
-            WHERE ug.user_id = ? AND ug.filter_on = 1
-            ORDER BY g.grouptext
-        """, (session.get('user_id'),))
-        groups = cursor.fetchall()
-        
-    return render_template('forum/new_thread.html', groups=groups, Config=Config)
 
 @forum_blueprint.route("/thread/<int:thread_id>/post", methods=["POST"])
 @rate_limit()
@@ -582,24 +412,6 @@ def get_image(image_id: int):
             f'inline; filename="{image["filename"]}"'
         )
         return response
-
-@forum_blueprint.route("/api/categories/<int:group_id>")
-def get_categories(group_id: int):
-    """API endpoint to get categories for a specific group."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, category 
-            FROM group_categories 
-            WHERE group_id = ?
-            ORDER BY category
-        """, (group_id,))
-        categories = cursor.fetchall()
-        
-    return jsonify([{
-        'id': cat['id'],
-        'category': cat['category']
-    } for cat in categories])
 
 @forum_blueprint.route("/api/search_users")
 def search_users():
@@ -1036,3 +848,266 @@ def add_author_to_thread(thread_id: int):
             flash(f"Post author already has access to this thread")
     
     return redirect(url_for('forum.view_thread', thread_id=thread_id))
+
+# This file contains updates to the forum.py view_threads route for improved filtering
+
+@forum_blueprint.route("/")
+def view_threads():
+    """Show threads accessible to current user with filtering."""
+    user_id = session.get('user_id')
+    page = request.args.get('page', 1, type=int)
+    offset = (page - 1) * Config.THREADS_PER_PAGE
+    
+    # Get filter parameters
+    filter_group = request.args.get('group_id', type=int)
+    filter_category = request.args.get('category_id', type=int)
+    is_wiki = request.args.get('is_wiki', '0') == '1'
+    
+    # Store filter preferences if provided
+    if 'group_id' in request.args:
+        if filter_group is not None:
+            session['filter_group'] = filter_group
+        else:
+            # If explicitly set to empty (All Groups), remove from session
+            if 'filter_group' in session:
+                session.pop('filter_group')
+    elif 'filter_group' in session:
+        filter_group = session.get('filter_group')
+        
+    if 'category_id' in request.args:
+        if filter_category is not None:
+            session['filter_category'] = filter_category
+        else:
+            # If explicitly set to empty (All Categories), remove from session
+            if 'filter_category' in session:
+                session.pop('filter_category')
+    elif 'filter_category' in session:
+        filter_category = session.get('filter_category')
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Get all available groups for filter dropdown
+        cursor.execute("""
+            SELECT id, grouptext FROM groups ORDER BY grouptext
+        """)
+        all_groups = cursor.fetchall()
+        
+        # Get categories for the selected group
+        categories = []
+        if filter_group:
+            cursor.execute("""
+                SELECT id, category 
+                FROM group_categories 
+                WHERE group_id = ?
+                ORDER BY category
+            """, (filter_group,))
+            categories = cursor.fetchall()
+        
+        # Different queries for logged in vs anonymous users
+        query_parts = []
+        query_params = []
+        
+        # Base query
+        base_query = """
+            SELECT DISTINCT 
+                t.*, u.username,
+                g.grouptext as group_name,
+                gc.category as category_name,
+                COUNT(p.id) as post_count,
+                MAX(p.created_at) as last_post_at
+            FROM threads t
+            JOIN users u ON t.created_by = u.id
+            LEFT JOIN groups g ON t.group_id = g.id
+            LEFT JOIN group_categories gc ON t.category_id = gc.id
+            LEFT JOIN thread_users tu ON t.id = tu.thread_id
+            LEFT JOIN posts p ON t.id = p.thread_id
+            WHERE t.is_wiki = ?
+        """
+        query_params.append(1 if is_wiki else 0)
+        
+        # Add group filter if selected
+        if filter_group:
+            query_parts.append("t.group_id = ?")
+            query_params.append(filter_group)
+            
+        # Add category filter if selected
+        if filter_category:
+            query_parts.append("t.category_id = ?")
+            query_params.append(filter_category)
+        
+        # Add user access restrictions
+        if user_id:
+            # Get the filtered groups for the user
+            cursor.execute("""
+                SELECT group_id 
+                FROM user_groups 
+                WHERE user_id = ? AND filter_on = 1
+            """, (user_id,))
+            filtered_groups = [row['group_id'] for row in cursor.fetchall()]
+            
+            # If no groups are filtered, show threads from all groups
+            if filtered_groups:
+                filtered_groups_str = ','.join('?' for _ in filtered_groups)
+                query_parts.append(f"(t.group_id IS NULL OR t.group_id IN ({filtered_groups_str}))")
+                query_params.extend(filtered_groups)
+            
+            # Add thread access control
+            query_parts.append("""(
+                tu.thread_id IS NULL 
+                OR tu.user_id = ?
+                OR t.created_by = ?
+            )""")
+            query_params.extend([user_id, user_id])
+        else:
+            # Anonymous users see all public threads
+            query_parts.append("tu.thread_id IS NULL")
+        
+        # Combine all query parts
+        where_clause = " AND ".join(query_parts) if query_parts else ""
+        if where_clause:
+            base_query += " AND " + where_clause
+            
+        final_query = base_query + """
+            GROUP BY t.id
+            ORDER BY last_post_at DESC
+            LIMIT ? OFFSET ?
+        """
+        query_params.extend([Config.THREADS_PER_PAGE, offset])
+        
+        cursor.execute(final_query, query_params)
+        threads = cursor.fetchall()
+        
+    return render_template("forum/thread_list.html", 
+                          threads=threads, 
+                          page=page,
+                          groups=all_groups,
+                          categories=categories,
+                          selected_group=filter_group,
+                          selected_category=filter_category,
+                          is_wiki=is_wiki,
+                          Config=Config)
+
+# --- Now add the API endpoint to get categories for AJAX ---
+
+@forum_blueprint.route("/api/categories/<int:group_id>")
+def get_categories(group_id: int):
+    """API endpoint to get categories for a specific group."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, category 
+            FROM group_categories 
+            WHERE group_id = ?
+            ORDER BY category
+        """, (group_id,))
+        categories = cursor.fetchall()
+        
+    return jsonify([{
+        'id': category['id'],
+        'category': category['category']
+    } for category in categories])
+
+@forum_blueprint.route("/new_thread", methods=["GET", "POST"])
+@rate_limit()
+def new_thread():
+    """Create new thread or wiki page with initial content."""
+    if not session.get('user_id'):
+        return redirect(url_for('auth.login'))
+
+    # Check if this is a wiki page creation
+    is_wiki = request.args.get('is_wiki', '0') == '1'
+
+    if request.method == "POST":
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '').strip()
+        users = request.form.get('users', '').strip().split(',')
+        group_id = request.form.get('group_id')
+        category_id = request.form.get('category_id')
+        is_wiki = request.form.get('is_wiki', '0') == '1'
+        
+        # Validate title length
+        if len(title) > Config.MAX_TITLE_LENGTH:
+            flash(f"Title must be {Config.MAX_TITLE_LENGTH} characters or less")
+            return redirect(url_for('forum.new_thread', is_wiki=1 if is_wiki else 0))
+        
+        # Validate group and category
+        if not group_id or not category_id:
+            flash("Please select both a group and category")
+            return redirect(url_for('forum.new_thread', is_wiki=1 if is_wiki else 0))
+        
+        # Verify the user has access to this group
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT filter_on FROM user_groups 
+                WHERE user_id = ? AND group_id = ?
+            """, (session['user_id'], group_id))
+            
+            group_access = cursor.fetchone()
+            if not group_access or not group_access['filter_on']:
+                flash("You don't have access to post in this group")
+                return redirect(url_for('forum.new_thread', is_wiki=1 if is_wiki else 0))
+            
+            processor = ContentProcessor(conn)
+            
+            # Create thread with group and category
+            cursor.execute("""
+                INSERT INTO threads (title, created_by, group_id, category_id, is_wiki)
+                VALUES (?, ?, ?, ?, ?)
+            """, (title, session['user_id'], group_id, category_id, 1 if is_wiki else 0))
+            thread_id = cursor.lastrowid
+            
+            # Add permitted users (if not wiki page)
+            if not is_wiki and users and users[0]:
+                user_values = [
+                    (thread_id, int(user_id)) 
+                    for user_id in users 
+                    if user_id and user_id != str(session['user_id'])
+                ]
+                cursor.executemany("""
+                    INSERT INTO thread_users (thread_id, user_id)
+                    VALUES (?, ?)
+                """, user_values)
+            
+            # Create first post with empty content initially
+            cursor.execute("""
+                INSERT INTO posts (thread_id, created_by, content)
+                VALUES (?, ?, '')
+            """, (thread_id, session['user_id']))
+            post_id = cursor.lastrowid
+            
+            # Process content (convert base64 images to URLs) but keep as markdown
+            processed_content, _ = processor.process_new_post(content, post_id)
+            
+            # Update post with processed markdown (not HTML)
+            cursor.execute("""
+                UPDATE posts 
+                SET content = ?
+                WHERE id = ?
+            """, (processed_content, post_id))
+            
+            # If this is a wiki page, also create an entry in wiki_revisions
+            if is_wiki:
+                # This would normally happen after wiki tables are created
+                # This is a placeholder for future implementation
+                pass
+            
+        return redirect(url_for('forum.view_thread', thread_id=thread_id))
+    
+    # GET request - Fetch filtered groups for the form
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT g.id, g.grouptext 
+            FROM groups g
+            JOIN user_groups ug ON g.id = ug.group_id
+            WHERE ug.user_id = ? AND ug.filter_on = 1
+            ORDER BY g.grouptext
+        """, (session.get('user_id'),))
+        groups = cursor.fetchall()
+        
+    return render_template('forum/new_thread.html', 
+                          groups=groups, 
+                          Config=Config, 
+                          is_wiki=is_wiki)

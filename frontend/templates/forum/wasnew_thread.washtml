@@ -1,34 +1,26 @@
 {% extends "base.html" %}
-{% block title %}{% if is_wiki %}New Wiki Page{% else %}New Thread{% endif %}{% endblock %}
+{% block title %}New Thread{% endblock %}
 
 {% block content %}
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            {% if is_wiki %}
-                <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1) }}">Wiki</a></li>
-                <li class="breadcrumb-item active">New Page</li>
-            {% else %}
-                <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads') }}">Forum</a></li>
-                <li class="breadcrumb-item active">New Thread</li>
-            {% endif %}
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads') }}">Forum</a></li>
+            <li class="breadcrumb-item active">New Thread</li>
         </ol>
     </nav>
 
     <div class="card">
         <div class="card-body">
-            <h1 class="card-title">{% if is_wiki %}Create New Wiki Page{% else %}Create New Thread{% endif %}</h1>
+            <h1 class="card-title">Create New Thread</h1>
             <form id="newThreadForm" method="POST">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="is_wiki" value="{{ '1' if is_wiki else '0' }}">
-                
                 <div class="form-group mb-3">
-                    <label for="title">{% if is_wiki %}Page Title{% else %}Thread Title{% endif %}:</label>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="title">Thread Title:</label>
                     <input type="text" id="title" name="title" 
                            class="form-control" required
                            maxlength="{{ Config.MAX_TITLE_LENGTH }}">
                     <small class="form-text text-muted">
                         Maximum {{ Config.MAX_TITLE_LENGTH }} characters
-                        {% if is_wiki %}<br>Note: Page titles cannot be changed after creation{% endif %}
                     </small>
                 </div>
 
@@ -50,22 +42,15 @@
                 </div>
                 
                 <div class="form-group mb-3">
-                    <label for="content">{% if is_wiki %}Page Content{% else %}First Post{% endif %}:</label>
+                    <label for="content">First Post:</label>
                     <textarea id="content" name="content" 
                              class="form-control post-editor" required
-                             rows="{% if is_wiki %}15{% else %}10{% endif %}"></textarea>
+                             rows="10"></textarea>
                     <div class="form-text text-muted">
-                        {% if is_wiki %}
-                            Supports Markdown formatting, images, and links.<br>
-                            Use standard markdown links: [Link Text](https://example.com)<br>
-                            For internal wiki links, use: [[Page Title]]
-                        {% else %}
-                            Supports Markdown and image paste
-                        {% endif %}
+                        Supports Markdown and image paste
                     </div>
                 </div>
                 
-                {% if not is_wiki %}
                 <div class="form-group mb-3">
                     <label for="userSearch">Add Users (Optional):</label>
                     <div class="user-search position-relative">
@@ -81,11 +66,8 @@
                         Thread will be private if users are selected
                     </small>
                 </div>
-                {% endif %}
 
-                <button type="submit" class="btn btn-primary">
-                    {% if is_wiki %}Create Page{% else %}Create Thread{% endif %}
-                </button>
+                <button type="submit" class="btn btn-primary">Create Thread</button>
             </form>
         </div>
     </div>
@@ -93,7 +75,6 @@
 
 {% block scripts %}
 <script>
-{% if not is_wiki %}
 let selectedUsers = new Set();
 
 async function searchUsers(query) {
@@ -155,20 +136,43 @@ function updateUserList() {
 
 // User search with debouncing
 const userSearch = document.getElementById('userSearch');
-if (userSearch) {
-    userSearch.addEventListener('input', function(e) {
-        clearTimeout(this.searchTimeout);
-        this.searchTimeout = setTimeout(() => searchUsers(e.target.value), 300);
-    });
+userSearch.addEventListener('input', function(e) {
+    clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(() => searchUsers(e.target.value), 300);
+});
 
-    // Hide results when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!userSearch.contains(e.target)) {
-            document.getElementById('userResults').classList.remove('show');
+// Hide results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!userSearch.contains(e.target)) {
+        document.getElementById('userResults').classList.remove('show');
+    }
+});
+
+// Image paste handling
+document.getElementById('content').addEventListener('paste', async function(e) {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    
+    for (let item of items) {
+        if (item.type.indexOf('image') === 0) {
+            e.preventDefault();
+            
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                const img_data = event.target.result;
+                const cursor = this.selectionStart;
+                const text = this.value;
+                
+                this.value = text.substring(0, cursor) + 
+                    `![Pasted image](${img_data})` +
+                    text.substring(cursor);
+            }.bind(this);
+            
+            reader.readAsDataURL(blob);
         }
-    });
-}
-{% endif %}
+    }
+});
 
 // Handle group selection change - fetch categories for selected group
 document.getElementById('group').addEventListener('change', async function() {
@@ -202,32 +206,6 @@ document.getElementById('group').addEventListener('change', async function() {
         categorySelect.disabled = false;
     } catch (error) {
         console.error('Error fetching categories:', error);
-    }
-});
-
-// Image paste handling
-document.getElementById('content').addEventListener('paste', async function(e) {
-    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-    
-    for (let item of items) {
-        if (item.type.indexOf('image') === 0) {
-            e.preventDefault();
-            
-            const blob = item.getAsFile();
-            const reader = new FileReader();
-            
-            reader.onload = function(event) {
-                const img_data = event.target.result;
-                const cursor = this.selectionStart;
-                const text = this.value;
-                
-                this.value = text.substring(0, cursor) + 
-                    `![Pasted image](${img_data})` +
-                    text.substring(cursor);
-            }.bind(this);
-            
-            reader.readAsDataURL(blob);
-        }
     }
 });
 </script>

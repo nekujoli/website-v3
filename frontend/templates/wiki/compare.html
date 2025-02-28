@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Compare Revisions: {{ page.title }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1) }}">Wiki</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('wiki.view_page', title=page.title|replace(' ', '_')) }}">{{ page.title }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('wiki.page_history', title=page.title|replace(' ', '_')) }}">History</a></li>
+            <li class="breadcrumb-item active">Compare Revisions</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Compare Revisions: {{ page.title }}</h1>
+        <a href="{{ url_for('wiki.page_history', title=page.title|replace(' ', '_')) }}" class="btn btn-outline-secondary">Back to History</a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="row">
+                <div class="col-md-6 border-end">
+                    <h5>From: {{ from_revision.created_at | datetime }}</h5>
+                    <p class="mb-0 text-muted">
+                        Edited by {{ from_revision.username }}
+                        {% if from_revision.edit_comment %}
+                        <br><small>{{ from_revision.edit_comment }}</small>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h5>To: {{ to_revision.created_at | datetime }}</h5>
+                    <p class="mb-0 text-muted">
+                        Edited by {{ to_revision.username }}
+                        {% if to_revision.edit_comment %}
+                        <br><small>{{ to_revision.edit_comment }}</small>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="comparison">
+                <div class="row g-0">
+                    <div class="col-md-6 border-end p-3">
+                        <div class="wiki-content">
+                            {{ from_html|safe }}
+                        </div>
+                    </div>
+                    <div class="col-md-6 p-3">
+                        <div class="wiki-content">
+                            {{ to_html|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Highlight differences (a simple approach)
+    // This is a basic implementation - a proper diff highlighting would use a library
+    
+    const leftContent = document.querySelector('.comparison .row .col-md-6:first-child .wiki-content');
+    const rightContent = document.querySelector('.comparison .row .col-md-6:last-child .wiki-content');
+    
+    // Function to get all text nodes within an element
+    function getTextNodes(element) {
+        const walker = document.createTreeWalker(
+            element, 
+            NodeFilter.SHOW_TEXT, 
+            null, 
+            false
+        );
+        
+        const textNodes = [];
+        let node;
+        while (node = walker.nextNode()) {
+            textNodes.push(node);
+        }
+        
+        return textNodes;
+    }
+    
+    // Get text content from both sides
+    const leftText = leftContent.textContent.trim();
+    const rightText = rightContent.textContent.trim();
+    
+    // Simple check - if the text is completely different, highlight the entire sections
+    if (leftText !== rightText) {
+        // Get each paragraph/heading element from both sides
+        const leftElements = leftContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+        const rightElements = rightContent.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li');
+        
+        // Compare each element and highlight differences
+        const minElements = Math.min(leftElements.length, rightElements.length);
+        
+        for (let i = 0; i < minElements; i++) {
+            if (leftElements[i].textContent.trim() !== rightElements[i].textContent.trim()) {
+                leftElements[i].style.backgroundColor = 'rgba(255, 200, 200, 0.3)';
+                rightElements[i].style.backgroundColor = 'rgba(200, 255, 200, 0.3)';
+            }
+        }
+        
+        // Highlight added or removed elements
+        if (leftElements.length > rightElements.length) {
+            for (let i = minElements; i < leftElements.length; i++) {
+                leftElements[i].style.backgroundColor = 'rgba(255, 200, 200, 0.3)';
+            }
+        } else if (rightElements.length > leftElements.length) {
+            for (let i = minElements; i < rightElements.length; i++) {
+                rightElements[i].style.backgroundColor = 'rgba(200, 255, 200, 0.3)';
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

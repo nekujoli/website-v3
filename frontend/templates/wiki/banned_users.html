@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Banned Users{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1) }}">Wiki</a></li>
+            <li class="breadcrumb-item active">Banned Users</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h1 class="h2">Manage Banned Users</h1>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">
+                Users you've banned cannot edit any wiki pages you've created. This list only applies to your own wiki pages.
+            </p>
+            
+            {% if banned_users %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 60%">Username</th>
+                                <th style="width: 25%">Banned On</th>
+                                <th style="width: 15%">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in banned_users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.created_at | datetime }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('wiki.unban_user', user_id=user.id) }}" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                    onclick="return confirm('Unban {{ user.username }}? They will be able to edit your wiki pages again.')">
+                                                Unban
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    You haven't banned any users yet.
+                </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <a href="{{ url_for('forum.view_threads', is_wiki=1) }}" class="btn btn-outline-secondary">Back to Wiki</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

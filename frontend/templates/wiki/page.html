@@ -1,18 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }}{% endblock %}
 
-{% block wiki_content %}
-    <div class="card">
-        <div class="card-body">
-            <h1 class="card-title">{{ page.title }}</h1>
-            <div class="card-text content">
-                {{ page.content | safe }}
-            </div>
-            
-            {% if session.get('user') %}
-                <div class="mt-4">
-                    <a href="#" class="btn btn-outline-secondary">Edit</a>
-                    <a href="#" class="btn btn-outline-secondary">History</a>
-                </div>
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1) }}">Wiki</a></li>
+            {% if page.group_name %}
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1, group_id=page.group_id) }}">{{ page.group_name }}</a></li>
             {% endif %}
+            {% if page.category_name %}
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1, group_id=page.group_id, category_id=page.category_id) }}">{{ page.category_name }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active">{{ page.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>{{ page.title }}</h1>
+        <div class="btn-group">
+            {% if can_edit %}
+                <a href="{{ url_for('wiki.edit_page', title=page.title|replace(' ', '_')) }}" class="btn btn-primary">Edit</a>
+            {% endif %}
+            <a href="{{ url_for('wiki.page_history', title=page.title|replace(' ', '_')) }}" class="btn btn-outline-secondary">History{% if revision_count %} ({{ revision_count }}){% endif %}</a>
+            <a href="{{ url_for('wiki.view_talk', title=page.title|replace(' ', '_')) }}" class="btn btn-outline-secondary">Discussion</a>
         </div>
     </div>
+
+    {% if not can_edit and edit_reason %}
+        <div class="alert alert-warning">
+            {{ edit_reason }}
+        </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between">
+            <span>
+                <small class="text-muted">Created by {{ page.username }} on {{ page.created_at | datetime }}</small>
+                {% if page.updated_at != page.created_at %}
+                <small class="text-muted ms-2">• Last updated {{ page.updated_at | datetime }}</small>
+                {% endif %}
+            </span>
+            {% if page.group_name and page.category_name %}
+            <span>
+                <span class="badge bg-primary">{{ page.group_name }}</span>
+                <span class="badge bg-secondary">{{ page.category_name }}</span>
+            </span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="wiki-content">
+                {{ rendered_content|safe }}
+            </div>
+        </div>
+    </div>
+    
+    {% if session.get('user_id') %}
+    <div class="mt-3 text-end">
+        <a href="{{ url_for('wiki.search') }}" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="fa fa-search"></i> Search Wiki
+        </a>
+    </div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add anchor links to headings
+    document.addEventListener('DOMContentLoaded', function() {
+        const headings = document.querySelectorAll('.wiki-content h1, .wiki-content h2, .wiki-content h3, .wiki-content h4, .wiki-content h5, .wiki-content h6');
+        
+        headings.forEach(heading => {
+            // Create an ID from the heading text
+            const id = heading.textContent.trim()
+                .toLowerCase()
+                .replace(/[^\w\s-]/g, '')
+                .replace(/\s+/g, '-');
+            
+            // Set the ID on the heading
+            heading.id = id;
+            
+            // Create anchor link
+            const anchor = document.createElement('a');
+            anchor.href = `#${id}`;
+            anchor.className = 'header-anchor';
+            anchor.textContent = '#';
+            anchor.style.marginLeft = '0.5rem';
+            anchor.style.opacity = '0.5';
+            anchor.style.textDecoration = 'none';
+            
+            // Show anchor on hover
+            heading.addEventListener('mouseenter', () => {
+                anchor.style.opacity = '1';
+            });
+            
+            heading.addEventListener('mouseleave', () => {
+                anchor.style.opacity = '0.5';
+            });
+            
+            heading.appendChild(anchor);
+        });
+    });
+</script>
 {% endblock %}

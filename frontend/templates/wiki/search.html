@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Search Wiki{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1) }}">Wiki</a></li>
+            <li class="breadcrumb-item active">Search</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h1 class="h2">Search Wiki</h1>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('wiki.search') }}" method="GET" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search for pages..." required>
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </form>
+            
+            {% if query %}
+                <h2 class="h4 mb-3">Search Results for "{{ query }}"</h2>
+                
+                {% if results %}
+                    <div class="list-group">
+                        {% for page in results %}
+                            <a href="{{ url_for('wiki.view_page', title=page.title|replace(' ', '_')) }}" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-1">{{ page.title }}</h5>
+                                    <small class="text-muted">
+                                        {% if page.group_name and page.category_name %}
+                                            <span class="badge bg-primary">{{ page.group_name }}</span>
+                                            <span class="badge bg-secondary">{{ page.category_name }}</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <p class="mb-1 text-muted">
+                                    Last updated {{ page.updated_at | datetime }}
+                                    by {{ page.username }}
+                                </p>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        No results found for "{{ query }}".
+                        
+                        {% if session.get('user') %}
+                            <a href="{{ url_for('forum.new_thread', is_wiki=1, title=query) }}" class="alert-link">Create this page</a>.
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

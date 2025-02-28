@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Edit: {{ page.title }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1) }}">Wiki</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('wiki.view_page', title=page.title|replace(' ', '_')) }}">{{ page.title }}</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h1 class="h2">Edit: {{ page.title }}</h1>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="last_updated" value="{{ page.updated_at }}">
+                
+                <div class="form-group mb-3">
+                    <label for="content">Content:</label>
+                    <textarea id="content" name="content" class="form-control wiki-editor" rows="20" required>{{ page.content }}</textarea>
+                    <div class="form-text text-muted">
+                        <strong>Markdown formatting:</strong><br>
+                        • <code>**Bold**</code> for <strong>Bold</strong><br>
+                        • <code>*Italic*</code> for <em>Italic</em><br>
+                        • <code>[Link text](https://example.com)</code> for external links<br>
+                        • <code>[[Page Title]]</code> for internal wiki links<br>
+                        • <code># Heading</code> for headings (# to ######)<br>
+                        • <code>* Item</code> for bullet lists<br>
+                        • <code>1. Item</code> for numbered lists
+                    </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="edit_comment">Edit comment:</label>
+                    <input type="text" id="edit_comment" name="edit_comment" class="form-control" value="{{ edit_comment }}" placeholder="Briefly describe your changes">
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <div class="form-text text-warning">
+                        <strong>Warning:</strong> If someone else edits this page while you're working on it, their changes will be preserved in the history but may be overwritten by yours.
+                    </div>
+                    <div>
+                        <a href="{{ url_for('wiki.view_page', title=page.title|replace(' ', '_')) }}" class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Image paste handling
+    document.getElementById('content').addEventListener('paste', async function(e) {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        
+        for (let item of items) {
+            if (item.type.indexOf('image') === 0) {
+                e.preventDefault();
+                
+                const blob = item.getAsFile();
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    const img_data = event.target.result;
+                    const cursor = this.selectionStart;
+                    const text = this.value;
+                    
+                    this.value = text.substring(0, cursor) + 
+                        `![Pasted image](${img_data})` +
+                        text.substring(cursor);
+                }.bind(this);
+                
+                reader.readAsDataURL(blob);
+            }
+        }
+    });
+    
+    // Auto-save draft every minute
+    let autoSaveInterval = setInterval(function() {
+        const content = document.getElementById('content').value;
+        if (content) {
+            localStorage.setItem('wiki_edit_draft_' + {{ page.id }}, content);
+            console.log('Draft saved: ' + new Date().toLocaleTimeString());
+        }
+    }, 60000);
+    
+    // Check for existing draft
+    const savedDraft = localStorage.getItem('wiki_edit_draft_' + {{ page.id }});
+    if (savedDraft && savedDraft !== document.getElementById('content').value) {
+        if (confirm('A draft of your previous edit was found. Would you like to restore it?')) {
+            document.getElementById('content').value = savedDraft;
+        } else {
+            localStorage.removeItem('wiki_edit_draft_' + {{ page.id }});
+        }
+    }
+    
+    // Clear draft when form is submitted
+    document.querySelector('form').addEventListener('submit', function() {
+        localStorage.removeItem('wiki_edit_draft_' + {{ page.id }});
+        clearInterval(autoSaveInterval);
+    });
+});
+</script>
+{% endblock %}

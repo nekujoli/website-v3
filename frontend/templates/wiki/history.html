@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}History: {{ page.title }}{% endblock %}
+
+{% block content %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('forum.view_threads', is_wiki=1) }}">Wiki</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('wiki.view_page', title=page.title|replace(' ', '_')) }}">{{ page.title }}</a></li>
+            <li class="breadcrumb-item active">History</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Revision History: {{ page.title }}</h1>
+        <a href="{{ url_for('wiki.view_page', title=page.title|replace(' ', '_')) }}" class="btn btn-outline-secondary">Back to Page</a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form action="{{ url_for('wiki.compare_revisions', title=page.title|replace(' ', '_')) }}" method="GET" class="mb-3">
+                <div class="d-flex align-items-center">
+                    <span class="me-3">Compare versions:</span>
+                    <button type="submit" class="btn btn-primary btn-sm">Compare Selected Revisions</button>
+                </div>
+            </form>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%">From</th>
+                            <th style="width: 5%">To</th>
+                            <th style="width: 20%">Date</th>
+                            <th style="width: 15%">Editor</th>
+                            <th style="width: 55%">Comment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Current Version -->
+                        <tr>
+                            <td>
+                                <input type="radio" name="from" value="0" form="compareForm" class="form-check-input">
+                            </td>
+                            <td>
+                                <input type="radio" name="to" value="0" form="compareForm" class="form-check-input" checked>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('wiki.view_page', title=page.title|replace(' ', '_')) }}">
+                                    {{ current_version.created_at | datetime }}
+                                </a>
+                                <span class="badge bg-success ms-1">Current</span>
+                            </td>
+                            <td>{{ current_version.username }}</td>
+                            <td>{{ current_version.edit_comment }}</td>
+                        </tr>
+                        
+                        <!-- Previous Revisions -->
+                        {% for revision in revisions %}
+                        <tr>
+                            <td>
+                                <input type="radio" name="from" value="{{ revision.id }}" form="compareForm" class="form-check-input" {% if loop.index == 1 %}checked{% endif %}>
+                            </td>
+                            <td>
+                                <input type="radio" name="to" value="{{ revision.id }}" form="compareForm" class="form-check-input">
+                            </td>
+                            <td>
+                                <a href="{{ url_for('wiki.view_revision', title=page.title|replace(' ', '_'), revision_id=revision.id) }}">
+                                    {{ revision.created_at | datetime }}
+                                </a>
+                            </td>
+                            <td>{{ revision.username }}</td>
+                            <td>{{ revision.edit_comment or '(no comment)' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Hidden form for comparison -->
+            <form id="compareForm" action="{{ url_for('wiki.compare_revisions', title=page.title|replace(' ', '_')) }}" method="GET"></form>
+        </div>
+    </div>
+{% endblock %}
