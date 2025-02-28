@@ -859,29 +859,35 @@ def view_threads():
     offset = (page - 1) * Config.THREADS_PER_PAGE
     
     # Get filter parameters
-    filter_group = request.args.get('group_id', type=int)
-    filter_category = request.args.get('category_id', type=int)
     is_wiki = request.args.get('is_wiki', '0') == '1'
     
-    # Store filter preferences if provided
+    # Handle empty string values for filters (explicit selection of "All")
     if 'group_id' in request.args:
-        if filter_group is not None:
-            session['filter_group'] = filter_group
-        else:
-            # If explicitly set to empty (All Groups), remove from session
+        # If group_id is in the request but empty, it means "All Groups" was selected
+        if request.args.get('group_id') == '':
+            filter_group = None
             if 'filter_group' in session:
                 session.pop('filter_group')
-    elif 'filter_group' in session:
-        filter_group = session.get('filter_group')
-        
-    if 'category_id' in request.args:
-        if filter_category is not None:
-            session['filter_category'] = filter_category
         else:
-            # If explicitly set to empty (All Categories), remove from session
+            # Otherwise use the provided value
+            filter_group = request.args.get('group_id', type=int)
+            session['filter_group'] = filter_group
+    else:
+        # If not in request, use session value if available
+        filter_group = session.get('filter_group')
+    
+    if 'category_id' in request.args:
+        # If category_id is in the request but empty, it means "All Categories" was selected
+        if request.args.get('category_id') == '':
+            filter_category = None
             if 'filter_category' in session:
                 session.pop('filter_category')
-    elif 'filter_category' in session:
+        else:
+            # Otherwise use the provided value
+            filter_category = request.args.get('category_id', type=int)
+            session['filter_category'] = filter_category
+    else:
+        # If not in request, use session value if available
         filter_category = session.get('filter_category')
     
     with get_db() as conn:

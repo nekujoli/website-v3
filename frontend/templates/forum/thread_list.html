@@ -149,23 +149,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Form submission handler to ensure we don't submit empty values
+    // Form submission handler - ensure we properly handle empty values
     const filterForm = document.getElementById('filterForm');
     if (filterForm) {
         filterForm.addEventListener('submit', function(e) {
-            // This ensures the form will submit as if the fields weren't present
-            // when they're empty, which helps with proper URL query parameters
-            const groupFilter = document.getElementById('groupFilter');
+            // Don't disable fields with empty values - this was causing the issue
+            // Instead, let them submit as empty strings which will be interpreted as "All"
+            
+            // Make sure the category filter is enabled for submission
             const categoryFilter = document.getElementById('categoryFilter');
-            
-            // If "All Groups" is selected, remove the group_id parameter
-            if (groupFilter && !groupFilter.value) {
-                groupFilter.disabled = true;
-            }
-            
-            // If "All Categories" is selected, remove the category_id parameter
-            if (categoryFilter && !categoryFilter.value) {
-                categoryFilter.disabled = true;
+            if (categoryFilter) {
+                categoryFilter.disabled = false;
             }
         });
     }
