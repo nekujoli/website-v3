@@ -21,10 +21,10 @@ from flask import (
     url_for, flash, abort, jsonify
 )
 from datetime import datetime
-from database import get_db
-from content import ContentProcessor
-from auth import rate_limit
-from config import Config
+from backend.database import get_db
+from backend.content import ContentProcessor
+from backend.auth import rate_limit
+from backend.config import Config
 
 wiki_blueprint = Blueprint("wiki", __name__)
 

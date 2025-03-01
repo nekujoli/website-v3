@@ -10,7 +10,7 @@ Usage:
 """
 
 import sqlite3
-from config import Config
+from backend.config import Config
 
 def reset_database():
     """Initialize fresh database, dropping existing tables."""

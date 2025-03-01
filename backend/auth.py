@@ -19,8 +19,8 @@ import secrets
 import hashlib
 import time
 from functools import wraps
-from database import get_db
-from config import Config
+from backend.database import get_db
+from backend.config import Config
 
 auth_blueprint = Blueprint("auth", __name__)
 

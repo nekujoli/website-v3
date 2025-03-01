@@ -22,13 +22,13 @@ Security Notes
 
 from flask import Flask, render_template, session
 from flask_wtf.csrf import CSRFProtect
-from auth import auth_blueprint
-from forum import forum_blueprint
-from wiki import wiki_blueprint
-from admin import admin_blueprint
-from config import Config
+from backend.auth import auth_blueprint
+from backend.forum import forum_blueprint
+from backend.wiki import wiki_blueprint
+from backend.admin import admin_blueprint
+from backend.config import Config
 from datetime import datetime
-from database import get_db
+from backend.database import get_db
 
 app = Flask(__name__, 
     template_folder="../frontend/templates", 

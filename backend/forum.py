@@ -18,10 +18,10 @@ from flask import (
     Blueprint, render_template, session, redirect, request,
     url_for, flash, jsonify, make_response, abort
 )
-from database import get_db
-from content import ContentProcessor
-from auth import rate_limit
-from config import Config
+from backend.database import get_db
+from backend.content import ContentProcessor
+from backend.auth import rate_limit
+from backend.config import Config
 from typing import List, Optional
 
 forum_blueprint = Blueprint("forum", __name__)

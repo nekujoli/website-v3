@@ -15,7 +15,7 @@ Usage:
 import sqlite3
 from contextlib import contextmanager
 from typing import Generator
-from config import Config
+from backend.config import Config
 
 @contextmanager
 def get_db() -> Generator[sqlite3.Connection, None, None]:

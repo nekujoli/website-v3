@@ -13,8 +13,8 @@ TODO:
 """
 
 from flask import Blueprint, render_template, session
-from database import get_db
-from auth import rate_limit
+from backend.database import get_db
+from backend.auth import rate_limit
 
 wiki_blueprint = Blueprint("wiki", __name__)
 

@@ -9,7 +9,7 @@ Only accessible to User ID 1 (administrator) and moderators.
 """
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session, abort
-from database import get_db
+from backend.database import get_db
 from functools import wraps
 
 admin_blueprint = Blueprint("admin", __name__)

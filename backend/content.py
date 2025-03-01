@@ -21,7 +21,7 @@ from typing import List, Tuple, Optional
 import base64
 from PIL import Image
 from io import BytesIO
-from config import Config
+from backend.config import Config
 
 class ContentProcessor:
     def __init__(self, db_connection):

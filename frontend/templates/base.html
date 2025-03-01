@@ -89,7 +89,7 @@
                     <a class="nav-link" href="#" id="theme-toggle" aria-label="Toggle dark/light mode">
                         <i class="fa fa-moon-o" id="dark-icon" aria-hidden="true"></i>
                         <i class="fa fa-sun-o" id="light-icon" style="display:none;" aria-hidden="true"></i>
-                        <span id="theme-text">Light Mode</span>
+                        <span id="theme-text">Dark Mode</span>
                     </a>
                 </li>
             </ul>
@@ -136,14 +136,14 @@ document.addEventListener('DOMContentLoaded', function() {
         document.documentElement.classList.add('light-mode');
         darkIcon.style.display = 'none';
         lightIcon.style.display = 'inline';
-        themeText.textContent = 'Dark Mode'; // This means "Switch to Dark Mode"
+        themeText.textContent = 'Light Mode'; // This means "Switch to Dark Mode"
     } else {
         // Initialize dark mode explicitly
         document.documentElement.classList.add('dark-mode');
         document.body.classList.add('dark-mode');
         darkIcon.style.display = 'inline';
         lightIcon.style.display = 'none';
-        themeText.textContent = 'Light Mode'; // This means "Switch to Light Mode"
+        themeText.textContent = 'Dark Mode'; // This means "Switch to Lght Mode"
     }
     
     // Toggle theme when clicked
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem('theme', 'dark');
             darkIcon.style.display = 'inline';
             lightIcon.style.display = 'none';
-            themeText.textContent = 'Light Mode'; // This means "Switch to Light Mode"
+            themeText.textContent = 'Dark Mode'; // This means "Switch to Dark Mode"
         } else {
             // Switch to light mode
             document.documentElement.classList.remove('dark-mode');
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem('theme', 'light');
             darkIcon.style.display = 'none';
             lightIcon.style.display = 'inline';
-            themeText.textContent = 'Dark Mode'; // This means "Switch to Dark Mode"
+            themeText.textContent = 'Light Mode'; // This means "Switch to Light Mode"
         }
     });
 });
