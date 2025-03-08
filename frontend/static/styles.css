@@ -7,17 +7,6 @@
 /* Global Variables
 ----------------------------------------*/
 :root {
-    /* Colors - dark mode default */
-    --page-bg: #06040b;
-    --card-bg: #161028;
-    --element-bg: #261c44;
-    --highlight-bg: #362861;
-    
-    --subtle-text: ##B9B3DB;
-    --standard-text: #CFCBE7;
-    --prominent-text: #D0CBE7;
-    --highlight-text: #E5E3F2;
-    
     /* Typography */
     --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-family-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -34,29 +23,28 @@
     --border-radius-lg: 0.5rem;
 }
 
-/* Light mode toggle - can be activated via JavaScript */
-/* debugging - this is the original but it's not a simple inverse yet */
-body.light-mode2 {
-    --page-bg: #f8f9fa;
-    --card-bg: #ffffff;
-    --element-bg: #e9ecef;
-    --highlight-bg: #dee2e6;
-    
-    --subtle-text: #6c757d;
-    --standard-text: #495057;
-    --prominent-text: #343a40;
-    --highlight-text: #1e1636;
-}
-body.light-mode {
+    /* Colors - dark mode default */
     --page-bg: #06040b;
     --card-bg: #161028;
     --element-bg: #261c44;
     --highlight-bg: #362861;
     
-    --subtle-text: #86848a;
-    --standard-text: #9690a8;
-    --prominent-text: #a69cc3;
-    --highlight-text: #b6a8e0;
+    --subtle-text: ##B9B3DB;
+    --standard-text: #CFCBE7;
+    --prominent-text: #D0CBE7;
+    --highlight-text: #E5E3F2;
+    
+
+/* Light mode toggle - can be activated via JavaScript */
+body.light-mode {
+--page-bg: #fdedfd;      /* Inverted from #06040b */
+--card-bg: #e5dffb;      /* Inverted from #161028 */
+--element-bg: #cfc2f9;   /* Inverted from #261c44 */
+--highlight-bg: #c3b3f9; /* Inverted from #362861 */    
+    --subtle-text: #82f13aa;
+    --standard-text: #2a1197;
+    --prominent-text: #1b0c5f;
+    --highlight-text: #0f0632;
 }
 
 /* Global Styles */
